@@ -1,4 +1,4 @@
-package memory
+package local
 
 import (
 	"POCS_Projects/internal/data"
@@ -58,8 +58,22 @@ func (l localAccountStore) DeleteAccount(id int) error {
 	return data.ErrAccountNotFound
 }
 
+var localAccounts = []data.Account{
+	{
+		ID:      1,
+		Name:    "John Doe",
+		Balance: 1000.50,
+	},
+	{
+		ID:      2,
+		Name:    "Jane Smith",
+		Balance: 1500.75,
+	},
+	// ... add more accounts as needed
+}
+
 func NewLocalAccountStore() data.AccountStore {
 	return &localAccountStore{
-		accounts: []data.Account{},
+		accounts: localAccounts,
 	}
 }

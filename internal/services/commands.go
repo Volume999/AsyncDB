@@ -9,6 +9,6 @@ type Command struct {
 }
 
 type Response struct {
-	Account *data.Account
-	Error   error
+	Data  interface{}
+	Error error
 }
