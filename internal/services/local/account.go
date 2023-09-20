@@ -12,58 +12,66 @@ type localAccountService struct {
 	commandChannel <-chan services.Command
 }
 
+const (
+	GetAccountsCommand    = "get_accounts"
+	GetAccountByIDCommand = "get_account_by_id"
+	CreateAccountCommand  = "create_account"
+	UpdateAccountCommand  = "update_account"
+	DeleteAccountCommand  = "delete_account"
+)
+
 func (a *localAccountService) GetAccounts() ([]data.Account, error) {
-	//TODO implement me
 	return a.store.GetAccounts()
 }
 
 func (a *localAccountService) GetAccountByID(id int) (*data.Account, error) {
-	//TODO implement me
-	panic("implement me")
+	return a.store.GetAccountByID(id)
 }
 
 func (a *localAccountService) CreateAccount(acc *data.Account) error {
-	//TODO implement me
-	panic("implement me")
+	return a.store.CreateAccount(acc)
 }
 
 func (a *localAccountService) UpdateAccount(acc *data.Account) error {
-	//TODO implement me
-	panic("implement me")
+	return a.store.UpdateAccount(acc)
 }
 
 func (a *localAccountService) DeleteAccount(id int) error {
-	//TODO implement me
-	panic("implement me")
+	return a.store.DeleteAccount(id)
+}
+
+func (a *localAccountService) handleCommand(cmd services.Command) {
+	switch cmd.Action {
+	case GetAccountsCommand:
+		a.logger.Println("get_accounts")
+		accounts, err := a.GetAccounts()
+		cmd.Result <- services.Response{Data: accounts, Error: err}
+	case GetAccountByIDCommand:
+		a.logger.Println("get_account_by_id")
+		acc, err := a.GetAccountByID(cmd.Account.ID)
+		cmd.Result <- services.Response{Data: acc, Error: err}
+	case CreateAccountCommand:
+		a.logger.Println("create_account")
+		err := a.CreateAccount(cmd.Account)
+		cmd.Result <- services.Response{Error: err}
+	case UpdateAccountCommand:
+		a.logger.Println("update_account")
+		err := a.UpdateAccount(cmd.Account)
+		cmd.Result <- services.Response{Error: err}
+	case DeleteAccountCommand:
+		a.logger.Println("delete_account")
+		err := a.DeleteAccount(cmd.Account.ID)
+		cmd.Result <- services.Response{Error: err}
+	default:
+		a.logger.Println("unknown command")
+		cmd.Result <- services.Response{Error: services.ErrUnknownCommand}
+	}
 }
 
 func (a *localAccountService) Run() {
 	a.logger.Println("starting account service")
 	for cmd := range a.commandChannel {
-		switch cmd.Action {
-		case "get_accounts":
-			a.logger.Println("get_accounts")
-			if accounts, err := a.GetAccounts(); err != nil {
-				cmd.Result <- services.Response{Data: nil, Error: err}
-			} else {
-				cmd.Result <- services.Response{Data: accounts, Error: nil}
-			}
-			break
-		case "get_account_by_id":
-			a.logger.Println("get_account_by_id")
-			break
-		case "create_account":
-			a.logger.Println("create_account")
-			break
-		case "update_account":
-			a.logger.Println("update_account")
-			break
-		case "delete_account":
-			a.logger.Println("delete_account")
-			break
-		default:
-			a.logger.Println("unknown command")
-		}
+		a.handleCommand(cmd)
 	}
 }
 

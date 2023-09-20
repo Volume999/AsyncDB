@@ -1,6 +1,9 @@
 package services
 
-import "POCS_Projects/internal/data"
+import (
+	"POCS_Projects/internal/data"
+	"fmt"
+)
 
 type Command struct {
 	Action  string
@@ -12,3 +15,5 @@ type Response struct {
 	Data  interface{}
 	Error error
 }
+
+var ErrUnknownCommand = fmt.Errorf("unknown command")
