@@ -8,7 +8,7 @@ import (
 )
 
 type localAccountService struct {
-	store          stores.AccountStore
+	store          stores.CustomerStore
 	logger         *log.Logger
 	commandChannel <-chan services.Command
 }
@@ -76,6 +76,6 @@ func (a *localAccountService) DeleteAccount(id int) error {
 //	}
 //}
 
-func NewLocalAccountService(store stores.AccountStore, logger *log.Logger, commandChannel <-chan services.Command) services.CustomerService {
+func NewLocalAccountService(store stores.CustomerStore, logger *log.Logger, commandChannel <-chan services.Command) services.CustomerService {
 	return &localAccountService{store, logger, commandChannel}
 }
