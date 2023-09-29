@@ -2,6 +2,7 @@ package main
 
 import (
 	"POCS_Projects/internal/config"
+	"POCS_Projects/internal/databases/sqlite"
 	"POCS_Projects/internal/services/order"
 	"POCS_Projects/internal/services/order/cmd"
 	"fmt"
@@ -15,6 +16,13 @@ const (
 
 func main() {
 	l := log.New(os.Stdout, "NewOrderCLI: ", log.LstdFlags)
+
+	db, err := sqlite.NewHandler("in-memory")
+	if err != nil {
+		l.Fatalf("error creating database handler, %s", err)
+	}
+	defer db.DB.Close()
+
 	appConfig, err := config.LoadConfig(configPath)
 	if err != nil {
 		l.Fatal(err)
@@ -29,4 +37,5 @@ func main() {
 	orderService.CreateOrder(cmd.NewOrderCommand{})
 
 	fmt.Println("Hello, World!")
+
 }
