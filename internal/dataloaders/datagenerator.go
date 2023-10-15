@@ -1,7 +1,10 @@
 package dataloaders
 
 import (
+	"POCS_Projects/internal/benchmark"
+	"POCS_Projects/internal/dataloaders/generators"
 	"POCS_Projects/internal/models"
+	"fmt"
 	"log"
 	"time"
 )
@@ -20,40 +23,43 @@ type GeneratedData struct {
 
 type DataGenerator interface {
 	// GenerateData generates data for the application
-	GenerateData() (GeneratedData, error)
+	GenerateData(constants benchmark.Constants) (GeneratedData, error)
 }
 
 type DataGeneratorImpl struct {
 	l               *log.Logger
 	warehouseNumber int
+	consts          benchmark.Constants
 }
 
-func (d DataGeneratorImpl) GenerateData() (GeneratedData, error) {
-	return GeneratedData{
-		warehouses: d.generateWarehouses(),
-		customers:  d.generateCustomers(),
-		items:      d.generateItems(),
-		stocks:     d.generateStocks(),
-		orders:     d.generateOrders(),
-		orderLines: d.generateOrderLines(),
-		newOrders:  d.generateNewOrders(),
-		history:    d.generateHistory(),
-		districts:  d.generateDistricts(),
-	}, nil
+func (gen DataGeneratorImpl) GenerateData(constants benchmark.Constants) (GeneratedData, error) {
+	gen.consts = constants
+	data := GeneratedData{
+		warehouses: gen.generateWarehouses(),
+		customers:  gen.generateCustomers(),
+		items:      gen.generateItems(),
+		stocks:     gen.generateStocks(),
+		orders:     gen.generateOrders(),
+		history:    gen.generateHistory(),
+		districts:  gen.generateDistricts(),
+	}
+	data.orderLines = gen.generateOrderLines(data.orders)
+	data.newOrders = gen.generateNewOrders(data.orders)
+	return data, nil
 }
 
-func (d DataGeneratorImpl) generateWarehouses() []models.Warehouse {
-	warehouses := make([]models.Warehouse, d.warehouseNumber)
-	for i := 0; i < d.warehouseNumber; i++ {
+func (gen DataGeneratorImpl) generateWarehouses() []models.Warehouse {
+	warehouses := make([]models.Warehouse, gen.warehouseNumber)
+	for i := 0; i < gen.warehouseNumber; i++ {
 		warehouses[i] = models.Warehouse{
 			Id:      i,
-			Name:    randomStrRangeLen(6, 10),
-			Street1: randomStrRangeLen(10, 20),
-			Street2: randomStrRangeLen(10, 20),
-			City:    randomStrRangeLen(10, 20),
-			State:   randomStrRangeLen(2, 2),
+			Name:    generators.RandomStrRangeLen(6, 10),
+			Street1: generators.RandomStrRangeLen(10, 20),
+			Street2: generators.RandomStrRangeLen(10, 20),
+			City:    generators.RandomStrRangeLen(10, 20),
+			State:   generators.RandomStrRangeLen(2, 2),
 			Zip:     generateZip(),
-			Tax:     randomFloatInRange(0.0000, 0.2000),
+			Tax:     generators.RandomFloatInRange(0.0000, 0.2000, 4),
 			Ytd:     300000.00,
 		}
 	}
@@ -61,36 +67,37 @@ func (d DataGeneratorImpl) generateWarehouses() []models.Warehouse {
 }
 
 func generateZip() string {
-	return ""
+	zip := generators.RandomIntInRange(1000, 9999)
+	return fmt.Sprintf("%d11111", zip)
 }
 
-func (d DataGeneratorImpl) generateCustomers() []models.Customer {
-	customers := make([]models.Customer, 3000*10*d.warehouseNumber)
-	for w := 0; w < d.warehouseNumber; w++ {
+func (gen DataGeneratorImpl) generateCustomers() []models.Customer {
+	customers := make([]models.Customer, 3000*10*gen.warehouseNumber)
+	for w := 0; w < gen.warehouseNumber; w++ {
 		for d := 0; d < 10; d++ {
 			for c := 0; c < 3000; c++ {
 				customers[w*3000*10+d*3000+c] = models.Customer{
 					ID:          c,
 					DistrictId:  d,
 					WarehouseId: w,
-					First:       randomStrRangeLen(8, 16),
-					Last:        generateLastName(c),
+					First:       generators.RandomStrRangeLen(8, 16),
+					Last:        generateLastName(generators.NURand(255, 0, 999, gen.consts.CLast)),
 					Middle:      "OE",
-					Street1:     randomStrRangeLen(10, 20),
-					Street2:     randomStrRangeLen(10, 20),
-					City:        randomStrRangeLen(10, 20),
-					State:       randomStrRangeLen(2, 2),
+					Street1:     generators.RandomStrRangeLen(10, 20),
+					Street2:     generators.RandomStrRangeLen(10, 20),
+					City:        generators.RandomStrRangeLen(10, 20),
+					State:       generators.RandomStrRangeLen(2, 2),
 					Zip:         generateZip(),
-					Phone:       randomNStrRangeLen(16, 16),
+					Phone:       generators.RandomNStrRangeLen(16, 16),
 					Since:       time.Now(),
 					Credit:      generateCredit(),
 					CreditLim:   50000.00,
-					Discount:    randomFloatInRange(0.0000, 0.5000),
+					Discount:    generators.RandomFloatInRange(0.0000, 0.5000, 4),
 					Balance:     -10.00,
 					YtdPayment:  10.00,
 					PaymentCnt:  1,
 					DeliveryCnt: 0,
-					Data:        randomStrRangeLen(300, 500),
+					Data:        generators.RandomStrRangeLen(300, 500),
 				}
 			}
 		}
@@ -99,25 +106,29 @@ func (d DataGeneratorImpl) generateCustomers() []models.Customer {
 }
 
 func generateCredit() string {
-	panic("implement me")
-}
-
-func randomNStrRangeLen(i int, i2 int) string {
-	panic("implement me")
+	if c := generators.RandomIntInRange(1, 100); c <= 10 {
+		return "BC"
+	} else {
+		return "GC"
+	}
 }
 
 func generateLastName(c int) string {
-	panic("implement me")
+	syls := []string{"BAR", "OUGHT", "ABLE", "PRI", "PRES", "ESE", "ANTI", "CALLY", "ATION", "EING"}
+	syl1 := syls[c/100]
+	syl2 := syls[(c/10)%10]
+	syl3 := syls[c%10]
+	return syl1 + syl2 + syl3
 }
 
-func (d DataGeneratorImpl) generateItems() []models.Item {
+func (gen DataGeneratorImpl) generateItems() []models.Item {
 	items := make([]models.Item, 100000)
 	for i := 0; i < 100000; i++ {
 		items[i] = models.Item{
 			Id:      i,
-			ImageId: randomIntInRange(1, 100),
-			Name:    randomStrRangeLen(14, 24),
-			Price:   randomFloatInRange(1.00, 100.00),
+			ImageId: generators.RandomIntInRange(1, 10000),
+			Name:    generators.RandomStrRangeLen(14, 24),
+			Price:   generators.RandomFloatInRange(1.00, 100.00, 2),
 			Data:    generateItemData(26, 50),
 		}
 	}
@@ -125,39 +136,34 @@ func (d DataGeneratorImpl) generateItems() []models.Item {
 }
 
 func generateItemData(i int, i2 int) string {
-	return "0"
+	if c := generators.RandomIntInRange(0, 100); c > 10 {
+		return generators.RandomStrRangeLen(i, i2)
+	} else {
+		idx := generators.RandomIntInRange(i, i2-7)
+		s1 := generators.RandomStrRangeLen(idx, idx)
+		s2 := generators.RandomStrRangeLen(i2-idx-7, i2-idx-7)
+		return s1 + "ORIGINAL" + s2
+	}
 }
 
-func randomFloatInRange(f float64, f2 float64) float64 {
-	return 0
-}
-
-func randomStrRangeLen(i int, i2 int) string {
-	return "0"
-}
-
-func randomIntInRange(i int, i2 int) int {
-	return 0
-}
-
-func (d DataGeneratorImpl) generateStocks() []models.Stock {
-	stocks := make([]models.Stock, 100000*d.warehouseNumber)
-	for w := 0; w < d.warehouseNumber; w++ {
+func (gen DataGeneratorImpl) generateStocks() []models.Stock {
+	stocks := make([]models.Stock, 100000*gen.warehouseNumber)
+	for w := 0; w < gen.warehouseNumber; w++ {
 		for i := 0; i < 100000; i++ {
 			stocks[w*100000+i] = models.Stock{
 				Id:          i,
 				WarehouseId: w,
-				Quantity:    randomIntInRange(10, 100),
-				Dist01:      randomStrRangeLen(24, 24),
-				Dist02:      randomStrRangeLen(24, 24),
-				Dist03:      randomStrRangeLen(24, 24),
-				Dist04:      randomStrRangeLen(24, 24),
-				Dist05:      randomStrRangeLen(24, 24),
-				Dist06:      randomStrRangeLen(24, 24),
-				Dist07:      randomStrRangeLen(24, 24),
-				Dist08:      randomStrRangeLen(24, 24),
-				Dist09:      randomStrRangeLen(24, 24),
-				Dist10:      randomStrRangeLen(24, 24),
+				Quantity:    generators.RandomIntInRange(10, 100),
+				Dist01:      generators.RandomStrRangeLen(24, 24),
+				Dist02:      generators.RandomStrRangeLen(24, 24),
+				Dist03:      generators.RandomStrRangeLen(24, 24),
+				Dist04:      generators.RandomStrRangeLen(24, 24),
+				Dist05:      generators.RandomStrRangeLen(24, 24),
+				Dist06:      generators.RandomStrRangeLen(24, 24),
+				Dist07:      generators.RandomStrRangeLen(24, 24),
+				Dist08:      generators.RandomStrRangeLen(24, 24),
+				Dist09:      generators.RandomStrRangeLen(24, 24),
+				Dist10:      generators.RandomStrRangeLen(24, 24),
 				Ytd:         0,
 				OrderCnt:    0,
 				RemoteCnt:   0,
@@ -168,41 +174,107 @@ func (d DataGeneratorImpl) generateStocks() []models.Stock {
 	return stocks
 }
 
-func (d DataGeneratorImpl) generateOrders() []models.Order {
-	//TODO implement me
-	panic("implement me")
+func (gen DataGeneratorImpl) generateOrders() []models.Order {
+	orders := make([]models.Order, 3000*10*gen.warehouseNumber)
+	for w := 0; w < gen.warehouseNumber; w++ {
+		for d := 0; d < 10; d++ {
+			customers := generators.RandomPermutationInt(1, 3000)
+			for o := 0; o < 3000; o++ {
+				order := models.Order{
+					Id:            o,
+					DistrictId:    d,
+					WarehouseId:   w,
+					CustomerId:    customers[o],
+					EntryDate:     time.Now(),
+					OrderLinesCnt: generators.RandomIntInRange(5, 15),
+					AllLocal:      1,
+				}
+				if order.Id < 2101 {
+					order.CarrierId = generators.RandomIntInRange(1, 10)
+				}
+				orders[w*3000*10+d*3000+o] = order
+			}
+		}
+	}
+	return orders
 }
 
-func (d DataGeneratorImpl) generateOrderLines() []models.OrderLine {
-	//TODO implement me
-	panic("implement me")
+func (gen DataGeneratorImpl) generateOrderLines(orders []models.Order) []models.OrderLine {
+	orderLines := make([]models.OrderLine, 0)
+	for _, order := range orders {
+		orderLineCnt := order.OrderLinesCnt
+		for i := 0; i < orderLineCnt; i++ {
+			orderLine := models.OrderLine{
+				OrderId:           order.Id,
+				DistrictId:        order.DistrictId,
+				WarehouseId:       order.WarehouseId,
+				LineNumber:        i,
+				ItemId:            generators.RandomIntInRange(1, 100000),
+				SupplyWarehouseId: order.WarehouseId,
+				Quantity:          5,
+				DistInfo:          generators.RandomStrRangeLen(24, 24),
+			}
+			if orderLine.OrderId < 2101 {
+				orderLine.DeliveryDate = order.EntryDate
+				orderLine.Amount = 0
+			} else {
+				orderLine.Amount = generators.RandomFloatInRange(0.01, 9999.99, 2)
+			}
+			orderLines = append(orderLines)
+		}
+	}
+	return orderLines
 }
 
-func (d DataGeneratorImpl) generateNewOrders() []models.NewOrder {
-	//TODO implement me
-	panic("implement me")
+func (gen DataGeneratorImpl) generateNewOrders(orders []models.Order) []models.NewOrder {
+	newOrders := make([]models.NewOrder, 0)
+	for _, order := range orders {
+		if order.Id > 2100 {
+			newOrder := models.NewOrder{
+				OrderId:     order.Id,
+				DistrictId:  order.DistrictId,
+				WarehouseId: order.WarehouseId,
+			}
+			newOrders = append(newOrders, newOrder)
+		}
+	}
+	return newOrders
 }
 
-func (d DataGeneratorImpl) generateHistory() []models.History {
-	//TODO implement me
-	panic("implement me")
+func (gen DataGeneratorImpl) generateHistory() []models.History {
+	histories := make([]models.History, 3000*10*gen.warehouseNumber)
+	for w := 0; w < gen.warehouseNumber; w++ {
+		for d := 0; d < 10; d++ {
+			for c := 0; c < 3000; c++ {
+				histories[w*3000*10+d*3000+c] = models.History{
+					CustomerID:          c,
+					CustomerDistrictId:  d,
+					CustomerWarehouseId: w,
+					Date:                time.Now(),
+					Amount:              10.00,
+					Data:                generators.RandomStrRangeLen(12, 24),
+				}
+			}
+		}
+	}
+	return histories
 }
 
-func (d DataGeneratorImpl) generateDistricts() []models.District {
-	districts := make([]models.District, 10*d.warehouseNumber)
-	for w := 0; w < d.warehouseNumber; w++ {
+func (gen DataGeneratorImpl) generateDistricts() []models.District {
+	districts := make([]models.District, 10*gen.warehouseNumber)
+	for w := 0; w < gen.warehouseNumber; w++ {
 		for i := 0; i < 10; i++ {
 			districts[w*10+i] = models.District{
 				Id:          i,
 				WarehouseId: w,
-				Name:        randomStrRangeLen(6, 10),
-				Street1:     randomStrRangeLen(10, 20),
-				Street2:     randomStrRangeLen(10, 20),
-				City:        randomStrRangeLen(10, 20),
-				State:       randomStrRangeLen(2, 2),
+				Name:        generators.RandomStrRangeLen(6, 10),
+				Street1:     generators.RandomStrRangeLen(10, 20),
+				Street2:     generators.RandomStrRangeLen(10, 20),
+				City:        generators.RandomStrRangeLen(10, 20),
+				State:       generators.RandomStrRangeLen(2, 2),
 				Zip:         generateZip(),
-				Tax:         randomFloatInRange(0.0000, 0.2000),
-				Ytd:         300000.00,
+				Tax:         generators.RandomFloatInRange(0.0000, 0.2000, 4),
+				Ytd:         30000.00,
 				NextOId:     3001,
 			}
 		}
