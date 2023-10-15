@@ -1,7 +1,7 @@
 package benchmark
 
 import (
-	"POCS_Projects/internal/dataloaders/generators"
+	"POCS_Projects/internal/benchmark/dataloaders/generators"
 )
 
 type Constants struct {

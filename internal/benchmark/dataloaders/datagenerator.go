@@ -2,7 +2,7 @@ package dataloaders
 
 import (
 	"POCS_Projects/internal/benchmark"
-	"POCS_Projects/internal/dataloaders/generators"
+	"POCS_Projects/internal/benchmark/dataloaders/generators"
 	"POCS_Projects/internal/models"
 	"fmt"
 	"log"
