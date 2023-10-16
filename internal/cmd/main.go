@@ -1,8 +1,8 @@
 package main
 
 import (
+	"POCS_Projects/internal/benchmark/databases/sqlite"
 	"POCS_Projects/internal/config"
-	"POCS_Projects/internal/databases/sqlite"
 	"POCS_Projects/internal/services/order"
 	"POCS_Projects/internal/services/order/cmd"
 	"fmt"
