@@ -12,3 +12,9 @@ type Order struct {
 	OrderLinesCnt int       `db:"O_OL_CNT"`
 	AllLocal      int       `db:"O_ALL_LOCAL"`
 }
+
+type OrderPK struct {
+	Id          int `db:"O_ID"`
+	DistrictId  int `db:"O_D_ID"`
+	WarehouseId int `db:"O_W_ID"`
+}

@@ -14,3 +14,10 @@ type OrderLine struct {
 	Amount            float64   `db:"OL_AMOUNT"`
 	DistInfo          string    `db:"OL_DIST_INFO"`
 }
+
+type OrderLinePK struct {
+	OrderId     int `db:"OL_O_ID"`
+	DistrictId  int `db:"OL_D_ID"`
+	WarehouseId int `db:"OL_W_ID"`
+	LineNumber  int `db:"OL_NUMBER"`
+}

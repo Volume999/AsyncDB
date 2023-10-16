@@ -10,15 +10,15 @@ import (
 )
 
 type GeneratedData struct {
-	Warehouses []models.Warehouse
-	Customers  []models.Customer
-	Items      []models.Item
-	Stocks     []models.Stock
-	Orders     []models.Order
-	OrderLines []models.OrderLine
-	NewOrders  []models.NewOrder
-	History    []models.History
-	Districts  []models.District
+	Warehouses map[models.WarehousePK]models.Warehouse
+	Districts  map[models.DistrictPK]models.District
+	Customers  map[models.CustomerPK]models.Customer
+	Items      map[models.ItemPK]models.Item
+	Stocks     map[models.StockPK]models.Stock
+	Orders     map[models.OrderPK]models.Order
+	OrderLines map[models.OrderLinePK]models.OrderLine
+	NewOrders  map[models.NewOrderPK]models.NewOrder
+	History    map[models.HistoryPK]models.History
 }
 
 type DataGenerator interface {
@@ -55,10 +55,10 @@ func (gen DataGeneratorImpl) GenerateData() (GeneratedData, error) {
 	return data, nil
 }
 
-func (gen DataGeneratorImpl) generateWarehouses() []models.Warehouse {
-	warehouses := make([]models.Warehouse, gen.warehouseNumber)
-	for i := 0; i < gen.warehouseNumber; i++ {
-		warehouses[i] = models.Warehouse{
+func (gen DataGeneratorImpl) generateWarehouses() map[models.WarehousePK]models.Warehouse {
+	warehouses := make(map[models.WarehousePK]models.Warehouse)
+	for i := 1; i <= gen.warehouseNumber; i++ {
+		warehouses[models.WarehousePK{Id: i}] = models.Warehouse{
 			Id:      i,
 			Name:    generators.RandomStrRangeLen(6, 10),
 			Street1: generators.RandomStrRangeLen(10, 20),
@@ -78,12 +78,16 @@ func generateZip() string {
 	return fmt.Sprintf("%d11111", zip)
 }
 
-func (gen DataGeneratorImpl) generateCustomers() []models.Customer {
-	customers := make([]models.Customer, 3000*10*gen.warehouseNumber)
+func (gen DataGeneratorImpl) generateCustomers() map[models.CustomerPK]models.Customer {
+	customers := make(map[models.CustomerPK]models.Customer)
 	for w := 0; w < gen.warehouseNumber; w++ {
 		for d := 0; d < 10; d++ {
 			for c := 0; c < 3000; c++ {
-				customers[w*3000*10+d*3000+c] = models.Customer{
+				customers[models.CustomerPK{
+					ID:          c,
+					DistrictId:  d,
+					WarehouseId: w,
+				}] = models.Customer{
 					ID:          c,
 					DistrictId:  d,
 					WarehouseId: w,
@@ -128,10 +132,10 @@ func generateLastName(c int) string {
 	return syl1 + syl2 + syl3
 }
 
-func (gen DataGeneratorImpl) generateItems() []models.Item {
-	items := make([]models.Item, 100000)
+func (gen DataGeneratorImpl) generateItems() map[models.ItemPK]models.Item {
+	items := make(map[models.ItemPK]models.Item)
 	for i := 0; i < 100000; i++ {
-		items[i] = models.Item{
+		items[models.ItemPK{Id: i}] = models.Item{
 			Id:      i,
 			ImageId: generators.RandomIntInRange(1, 10000),
 			Name:    generators.RandomStrRangeLen(14, 24),
@@ -153,11 +157,11 @@ func generateItemData(i int, i2 int) string {
 	}
 }
 
-func (gen DataGeneratorImpl) generateStocks() []models.Stock {
-	stocks := make([]models.Stock, 100000*gen.warehouseNumber)
+func (gen DataGeneratorImpl) generateStocks() map[models.StockPK]models.Stock {
+	stocks := make(map[models.StockPK]models.Stock)
 	for w := 0; w < gen.warehouseNumber; w++ {
 		for i := 0; i < 100000; i++ {
-			stocks[w*100000+i] = models.Stock{
+			stocks[models.StockPK{Id: i, WarehouseId: w}] = models.Stock{
 				Id:          i,
 				WarehouseId: w,
 				Quantity:    generators.RandomIntInRange(10, 100),
@@ -181,8 +185,8 @@ func (gen DataGeneratorImpl) generateStocks() []models.Stock {
 	return stocks
 }
 
-func (gen DataGeneratorImpl) generateOrders() []models.Order {
-	orders := make([]models.Order, 3000*10*gen.warehouseNumber)
+func (gen DataGeneratorImpl) generateOrders() map[models.OrderPK]models.Order {
+	orders := make(map[models.OrderPK]models.Order)
 	for w := 0; w < gen.warehouseNumber; w++ {
 		for d := 0; d < 10; d++ {
 			customers := generators.RandomPermutationInt(1, 3000)
@@ -199,15 +203,15 @@ func (gen DataGeneratorImpl) generateOrders() []models.Order {
 				if order.Id < 2101 {
 					order.CarrierId = generators.RandomIntInRange(1, 10)
 				}
-				orders[w*3000*10+d*3000+o] = order
+				orders[models.OrderPK{Id: o, DistrictId: d, WarehouseId: w}] = order
 			}
 		}
 	}
 	return orders
 }
 
-func (gen DataGeneratorImpl) generateOrderLines(orders []models.Order) []models.OrderLine {
-	orderLines := make([]models.OrderLine, 0)
+func (gen DataGeneratorImpl) generateOrderLines(orders map[models.OrderPK]models.Order) map[models.OrderLinePK]models.OrderLine {
+	orderLines := make(map[models.OrderLinePK]models.OrderLine)
 	for _, order := range orders {
 		orderLineCnt := order.OrderLinesCnt
 		for i := 0; i < orderLineCnt; i++ {
@@ -227,14 +231,19 @@ func (gen DataGeneratorImpl) generateOrderLines(orders []models.Order) []models.
 			} else {
 				orderLine.Amount = generators.RandomFloatInRange(0.01, 9999.99, 2)
 			}
-			orderLines = append(orderLines, orderLine)
+			orderLines[models.OrderLinePK{
+				OrderId:     orderLine.OrderId,
+				DistrictId:  orderLine.DistrictId,
+				WarehouseId: orderLine.WarehouseId,
+				LineNumber:  orderLine.LineNumber,
+			}] = orderLine
 		}
 	}
 	return orderLines
 }
 
-func (gen DataGeneratorImpl) generateNewOrders(orders []models.Order) []models.NewOrder {
-	newOrders := make([]models.NewOrder, 0)
+func (gen DataGeneratorImpl) generateNewOrders(orders map[models.OrderPK]models.Order) map[models.NewOrderPK]models.NewOrder {
+	newOrders := make(map[models.NewOrderPK]models.NewOrder)
 	for _, order := range orders {
 		if order.Id > 2100 {
 			newOrder := models.NewOrder{
@@ -242,18 +251,22 @@ func (gen DataGeneratorImpl) generateNewOrders(orders []models.Order) []models.N
 				DistrictId:  order.DistrictId,
 				WarehouseId: order.WarehouseId,
 			}
-			newOrders = append(newOrders, newOrder)
+			newOrders[models.NewOrderPK{
+				OrderId:     newOrder.OrderId,
+				DistrictId:  newOrder.DistrictId,
+				WarehouseId: newOrder.WarehouseId,
+			}] = newOrder
 		}
 	}
 	return newOrders
 }
 
-func (gen DataGeneratorImpl) generateHistory() []models.History {
-	histories := make([]models.History, 3000*10*gen.warehouseNumber)
+func (gen DataGeneratorImpl) generateHistory() map[models.HistoryPK]models.History {
+	histories := make(map[models.HistoryPK]models.History)
 	for w := 0; w < gen.warehouseNumber; w++ {
 		for d := 0; d < 10; d++ {
 			for c := 0; c < 3000; c++ {
-				histories[w*3000*10+d*3000+c] = models.History{
+				histories[models.HistoryPK{HistoryId: w*3000*10 + d*3000 + c}] = models.History{
 					CustomerID:          c,
 					CustomerDistrictId:  d,
 					CustomerWarehouseId: w,
@@ -267,11 +280,14 @@ func (gen DataGeneratorImpl) generateHistory() []models.History {
 	return histories
 }
 
-func (gen DataGeneratorImpl) generateDistricts() []models.District {
-	districts := make([]models.District, 10*gen.warehouseNumber)
+func (gen DataGeneratorImpl) generateDistricts() map[models.DistrictPK]models.District {
+	districts := make(map[models.DistrictPK]models.District)
 	for w := 0; w < gen.warehouseNumber; w++ {
 		for i := 0; i < 10; i++ {
-			districts[w*10+i] = models.District{
+			districts[models.DistrictPK{
+				Id:          i,
+				WarehouseId: w,
+			}] = models.District{
 				Id:          i,
 				WarehouseId: w,
 				Name:        generators.RandomStrRangeLen(6, 10),

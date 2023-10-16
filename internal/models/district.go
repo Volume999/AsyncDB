@@ -13,3 +13,8 @@ type District struct {
 	Ytd         float64 `db:"D_YTD"`
 	NextOId     int     `db:"D_NEXT_O_ID"`
 }
+
+type DistrictPK struct {
+	Id          int `db:"D_ID"`
+	WarehouseId int `db:"D_W_ID"`
+}

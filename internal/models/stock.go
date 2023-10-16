@@ -19,3 +19,8 @@ type Stock struct {
 	RemoteCnt   int     `db:"S_REMOTE_CNT"`
 	Data        string  `db:"S_DATA"`
 }
+
+type StockPK struct {
+	Id          int `db:"S_I_ID"`
+	WarehouseId int `db:"S_W_ID"`
+}

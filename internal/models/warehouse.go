@@ -11,3 +11,7 @@ type Warehouse struct {
 	Tax     float64 `db:"W_TAX"`
 	Ytd     float64 `db:"W_YTD"`
 }
+
+type WarehousePK struct {
+	Id int `db:"W_ID"`
+}

@@ -7,3 +7,7 @@ type Item struct {
 	Price   float64 `db:"I_PRICE"`
 	Data    string  `db:"I_DATA"`
 }
+
+type ItemPK struct {
+	Id int `db:"I_ID"`
+}

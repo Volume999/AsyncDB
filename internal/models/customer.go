@@ -25,3 +25,9 @@ type Customer struct {
 	DeliveryCnt int       `db:"C_DELIVERY_CNT"`
 	Data        string    `db:"C_DATA"`
 }
+
+type CustomerPK struct {
+	ID          int `db:"C_ID"`
+	DistrictId  int `db:"C_D_ID"`
+	WarehouseId int `db:"C_W_ID"`
+}

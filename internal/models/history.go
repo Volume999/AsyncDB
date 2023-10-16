@@ -12,3 +12,7 @@ type History struct {
 	Amount              float64   `db:"H_AMOUNT"`
 	Data                string    `db:"H_DATA"`
 }
+
+type HistoryPK struct {
+	HistoryId int `db:"H_ID"`
+}
