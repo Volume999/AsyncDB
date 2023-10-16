@@ -10,7 +10,7 @@ type Constants struct {
 	COLID int
 }
 
-func initConstants() Constants {
+func NewConstants() Constants {
 	return Constants{
 		CLast: generators.RandomIntInRange(0, 255),
 		CID:   generators.RandomIntInRange(0, 1023),

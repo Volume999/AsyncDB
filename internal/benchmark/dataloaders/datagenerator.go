@@ -10,15 +10,15 @@ import (
 )
 
 type GeneratedData struct {
-	warehouses []models.Warehouse
-	customers  []models.Customer
-	items      []models.Item
-	stocks     []models.Stock
-	orders     []models.Order
-	orderLines []models.OrderLine
-	newOrders  []models.NewOrder
-	history    []models.History
-	districts  []models.District
+	Warehouses []models.Warehouse
+	Customers  []models.Customer
+	Items      []models.Item
+	Stocks     []models.Stock
+	Orders     []models.Order
+	OrderLines []models.OrderLine
+	NewOrders  []models.NewOrder
+	History    []models.History
+	Districts  []models.District
 }
 
 type DataGenerator interface {
@@ -32,19 +32,26 @@ type DataGeneratorImpl struct {
 	consts          benchmark.Constants
 }
 
-func (gen DataGeneratorImpl) GenerateData(constants benchmark.Constants) (GeneratedData, error) {
-	gen.consts = constants
-	data := GeneratedData{
-		warehouses: gen.generateWarehouses(),
-		customers:  gen.generateCustomers(),
-		items:      gen.generateItems(),
-		stocks:     gen.generateStocks(),
-		orders:     gen.generateOrders(),
-		history:    gen.generateHistory(),
-		districts:  gen.generateDistricts(),
+func NewDataGeneratorImpl(warehouseNumber int, consts benchmark.Constants, l *log.Logger) DataGeneratorImpl {
+	return DataGeneratorImpl{
+		l:               l,
+		warehouseNumber: warehouseNumber,
+		consts:          consts,
 	}
-	data.orderLines = gen.generateOrderLines(data.orders)
-	data.newOrders = gen.generateNewOrders(data.orders)
+}
+
+func (gen DataGeneratorImpl) GenerateData() (GeneratedData, error) {
+	data := GeneratedData{
+		Warehouses: gen.generateWarehouses(),
+		Customers:  gen.generateCustomers(),
+		Items:      gen.generateItems(),
+		Stocks:     gen.generateStocks(),
+		Orders:     gen.generateOrders(),
+		History:    gen.generateHistory(),
+		Districts:  gen.generateDistricts(),
+	}
+	data.OrderLines = gen.generateOrderLines(data.Orders)
+	data.NewOrders = gen.generateNewOrders(data.Orders)
 	return data, nil
 }
 
@@ -220,7 +227,7 @@ func (gen DataGeneratorImpl) generateOrderLines(orders []models.Order) []models.
 			} else {
 				orderLine.Amount = generators.RandomFloatInRange(0.01, 9999.99, 2)
 			}
-			orderLines = append(orderLines)
+			orderLines = append(orderLines, orderLine)
 		}
 	}
 	return orderLines

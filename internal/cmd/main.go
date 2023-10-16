@@ -1,13 +1,11 @@
 package main
 
 import (
-	"POCS_Projects/internal/benchmark/databases/sqlite"
-	"POCS_Projects/internal/config"
-	"POCS_Projects/internal/services/order"
-	"POCS_Projects/internal/services/order/cmd"
+	"POCS_Projects/internal/benchmark"
+	"POCS_Projects/internal/benchmark/databases/pocsdb"
+	"POCS_Projects/internal/benchmark/dataloaders"
 	"fmt"
-	"log"
-	"os"
+	"github.com/kr/pretty"
 )
 
 const (
@@ -15,27 +13,24 @@ const (
 )
 
 func main() {
-	l := log.New(os.Stdout, "NewOrderCLI: ", log.LstdFlags)
+	// Try generating data
+	constants := benchmark.NewConstants()
+	data, _ := dataloaders.NewDataGeneratorImpl(1, constants, nil).GenerateData()
+	fmt.Println("Data generated successfully!")
+	fmt.Println("Warehouses: ", len(data.Warehouses))
+	fmt.Println("Customers: ", len(data.Customers))
+	fmt.Println("Items: ", len(data.Items))
+	fmt.Println("Stocks: ", len(data.Stocks))
+	fmt.Println("Orders: ", len(data.Orders))
+	fmt.Println("OrderLines: ", len(data.OrderLines))
+	fmt.Println("NewOrders: ", len(data.NewOrders))
+	fmt.Println("History: ", len(data.History))
+	fmt.Println("Districts: ", len(data.Districts))
 
-	db, err := sqlite.NewHandler("in-memory")
-	if err != nil {
-		l.Fatalf("error creating database handler, %s", err)
-	}
-	defer db.DB.Close()
+	db := pocsdb.NewPocsDB()
+	_ = db.LoadData(data)
+	ctx, _ := db.Connect()
 
-	appConfig, err := config.LoadConfig(configPath)
-	if err != nil {
-		l.Fatal(err)
-	}
-
-	var orderService order.Service
-
-	if appConfig.OrderServiceImplementation == "monoservice" {
-		orderService = order.NewMonoService(l)
-	}
-
-	orderService.CreateOrder(cmd.NewOrderCommand{})
-
-	fmt.Println("Hello, World!")
-
+	fmt.Println("DB connected successfully!")
+	fmt.Printf("Connection Context: %# v", pretty.Formatter(ctx))
 }
