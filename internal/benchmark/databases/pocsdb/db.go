@@ -34,200 +34,368 @@ func (p PocsDB) Disconnect(context *databases.ConnectionContext) error {
 	return nil
 }
 
-func (p PocsDB) Put(ctx *databases.ConnectionContext, dataType interface{}, key interface{}, value interface{}) error {
+func (p PocsDB) Put(ctx *databases.ConnectionContext, dataType interface{}, key interface{}, value interface{}) <-chan databases.RequestResult {
+	resultChan := make(chan databases.RequestResult)
 	switch dataType.(type) {
 	case models.Warehouse:
-		return p.putWarehouse(ctx, key, value)
+		go p.putWarehouse(ctx, key, value, resultChan)
 	case models.Customer:
-		return p.putCustomer(ctx, key, value)
+		go p.putCustomer(ctx, key, value, resultChan)
 	case models.Item:
-		return p.putItem(ctx, key, value)
+		go p.putItem(ctx, key, value, resultChan)
 	case models.Stock:
-		return p.putStock(ctx, key, value)
+		go p.putStock(ctx, key, value, resultChan)
 	case models.Order:
-		return p.putOrder(ctx, key, value)
+		go p.putOrder(ctx, key, value, resultChan)
 	case models.OrderLine:
-		return p.putOrderLine(ctx, key, value)
+		go p.putOrderLine(ctx, key, value, resultChan)
 	case models.NewOrder:
-		return p.putNewOrder(ctx, key, value)
+		go p.putNewOrder(ctx, key, value, resultChan)
 	case models.History:
-		return p.putHistory(ctx, key, value)
+		go p.putHistory(ctx, key, value, resultChan)
 	case models.District:
-		return p.putDistrict(ctx, key, value)
+		go p.putDistrict(ctx, key, value, resultChan)
 	default:
 		panic("implement me")
 	}
+	return resultChan
 }
 
-func (p PocsDB) Get(ctx *databases.ConnectionContext, dataType interface{}, key interface{}) (interface{}, error) {
+func (p PocsDB) Get(ctx *databases.ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
+	resultChan := make(chan databases.RequestResult)
 	switch dataType.(type) {
 	case models.Warehouse:
-		return p.getWarehouse(ctx, key)
+		go p.getWarehouse(ctx, key, resultChan)
 	case models.Customer:
-		return p.getCustomer(ctx, key)
+		go p.getCustomer(ctx, key, resultChan)
 	case models.Item:
-		return p.getItem(ctx, key)
+		go p.getItem(ctx, key, resultChan)
 	case models.Stock:
-		return p.getStock(ctx, key)
+		go p.getStock(ctx, key, resultChan)
 	case models.Order:
-		return p.getOrder(ctx, key)
+		go p.getOrder(ctx, key, resultChan)
 	case models.OrderLine:
-		return p.getOrderLine(ctx, key)
+		go p.getOrderLine(ctx, key, resultChan)
 	case models.NewOrder:
-		return p.getNewOrder(ctx, key)
+		go p.getNewOrder(ctx, key, resultChan)
 	case models.History:
-		return p.getHistory(ctx, key)
+		go p.getHistory(ctx, key, resultChan)
 	case models.District:
-		return p.getDistrict(ctx, key)
+		go p.getDistrict(ctx, key, resultChan)
 	default:
 		panic("implement me")
 	}
+	return resultChan
 }
 
-func (p PocsDB) Delete(ctx *databases.ConnectionContext, dataType interface{}, key interface{}) error {
+func (p PocsDB) Delete(ctx *databases.ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
+	resultChan := make(chan databases.RequestResult)
 	switch dataType.(type) {
 	case models.Warehouse:
-		return p.deleteWarehouse(ctx, key)
+		go p.deleteWarehouse(ctx, key, resultChan)
 	case models.Customer:
-		return p.deleteCustomer(ctx, key)
+		go p.deleteCustomer(ctx, key, resultChan)
 	case models.Item:
-		return p.deleteItem(ctx, key)
+		go p.deleteItem(ctx, key, resultChan)
 	case models.Stock:
-		return p.deleteStock(ctx, key)
+		go p.deleteStock(ctx, key, resultChan)
 	case models.Order:
-		return p.deleteOrder(ctx, key)
+		go p.deleteOrder(ctx, key, resultChan)
 	case models.OrderLine:
-		return p.deleteOrderLine(ctx, key)
+		go p.deleteOrderLine(ctx, key, resultChan)
 	case models.NewOrder:
-		return p.deleteNewOrder(ctx, key)
+		go p.deleteNewOrder(ctx, key, resultChan)
 	case models.History:
-		return p.deleteHistory(ctx, key)
+		go p.deleteHistory(ctx, key, resultChan)
 	case models.District:
-		return p.deleteDistrict(ctx, key)
+		go p.deleteDistrict(ctx, key, resultChan)
 	default:
 		panic("implement me")
 	}
+	return resultChan
 }
 
-func (p PocsDB) BeginTransaction(ctx *databases.ConnectionContext) error {
+func (p PocsDB) BeginTransaction(_ *databases.ConnectionContext) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (p PocsDB) CommitTransaction(ctx *databases.ConnectionContext) error {
+func (p PocsDB) CommitTransaction(_ *databases.ConnectionContext) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (p PocsDB) RollbackTransaction(ctx *databases.ConnectionContext) error {
+func (p PocsDB) RollbackTransaction(_ *databases.ConnectionContext) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (p PocsDB) getDistrict(ctx *databases.ConnectionContext, key interface{}) (interface{}, error) {
-	panic("implement me")
+func (p PocsDB) getDistrict(_ *databases.ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+	resultChan <- databases.RequestResult{
+		Data: p.data.Districts[key.(models.DistrictPK)],
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) getHistory(ctx *databases.ConnectionContext, key interface{}) (interface{}, error) {
-	panic("implement me")
+func (p PocsDB) getHistory(_ *databases.ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+	resultChan <- databases.RequestResult{
+		Data: p.data.History[key.(models.HistoryPK)],
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) getNewOrder(ctx *databases.ConnectionContext, key interface{}) (interface{}, error) {
-	panic("implement me")
+func (p PocsDB) getNewOrder(_ *databases.ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+	resultChan <- databases.RequestResult{
+		Data: p.data.NewOrders[key.(models.NewOrderPK)],
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) getOrderLine(ctx *databases.ConnectionContext, key interface{}) (interface{}, error) {
-	panic("implement me")
+func (p PocsDB) getOrderLine(_ *databases.ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+	resultChan <- databases.RequestResult{
+		Data: p.data.OrderLines[key.(models.OrderLinePK)],
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) getOrder(ctx *databases.ConnectionContext, key interface{}) (interface{}, error) {
-	panic("implement me")
+func (p PocsDB) getOrder(_ *databases.ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+	resultChan <- databases.RequestResult{
+		Data: p.data.Orders[key.(models.OrderPK)],
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) getStock(ctx *databases.ConnectionContext, key interface{}) (interface{}, error) {
-	panic("implement me")
+func (p PocsDB) getStock(_ *databases.ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+	resultChan <- databases.RequestResult{
+		Data: p.data.Stocks[key.(models.StockPK)],
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) getItem(ctx *databases.ConnectionContext, key interface{}) (interface{}, error) {
-	panic("implement me")
+func (p PocsDB) getItem(_ *databases.ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+	resultChan <- databases.RequestResult{
+		Data: p.data.Items[key.(models.ItemPK)],
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) getCustomer(ctx *databases.ConnectionContext, key interface{}) (interface{}, error) {
-	panic("implement me")
+func (p PocsDB) getCustomer(_ *databases.ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+	resultChan <- databases.RequestResult{
+		Data: p.data.Customers[key.(models.CustomerPK)],
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) getWarehouse(ctx *databases.ConnectionContext, key interface{}) (interface{}, error) {
-	panic("implement me")
+func (p PocsDB) getWarehouse(_ *databases.ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+	resultChan <- databases.RequestResult{
+		Data: p.data.Warehouses[key.(models.WarehousePK)],
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) putDistrict(ctx *databases.ConnectionContext, key interface{}, value interface{}) error {
-	panic("implement me")
+func (p PocsDB) putDistrict(_ *databases.ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+	p.data.Districts[key.(models.DistrictPK)] = value.(models.District)
+	errorChan <- databases.RequestResult{
+		Data: nil,
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) putHistory(ctx *databases.ConnectionContext, key interface{}, value interface{}) error {
-	panic("implement me")
+func (p PocsDB) putHistory(_ *databases.ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+	p.data.History[key.(models.HistoryPK)] = value.(models.History)
+	errorChan <- databases.RequestResult{
+		Data: nil,
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) putNewOrder(ctx *databases.ConnectionContext, key interface{}, value interface{}) error {
-	panic("implement me")
+func (p PocsDB) putNewOrder(_ *databases.ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+	p.data.NewOrders[key.(models.NewOrderPK)] = value.(models.NewOrder)
+	errorChan <- databases.RequestResult{
+		Data: nil,
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) putOrderLine(ctx *databases.ConnectionContext, key interface{}, value interface{}) error {
-	panic("implement me")
+func (p PocsDB) putOrderLine(_ *databases.ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+	p.data.OrderLines[key.(models.OrderLinePK)] = value.(models.OrderLine)
+	errorChan <- databases.RequestResult{
+		Data: nil,
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) putOrder(ctx *databases.ConnectionContext, key interface{}, value interface{}) error {
-	panic("implement me")
+func (p PocsDB) putOrder(_ *databases.ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+	p.data.Orders[key.(models.OrderPK)] = value.(models.Order)
+	errorChan <- databases.RequestResult{
+		Data: nil,
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) putStock(ctx *databases.ConnectionContext, key interface{}, value interface{}) error {
-	panic("implement me")
+func (p PocsDB) putStock(_ *databases.ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+	p.data.Stocks[key.(models.StockPK)] = value.(models.Stock)
+	errorChan <- databases.RequestResult{
+		Data: nil,
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) putItem(ctx *databases.ConnectionContext, key interface{}, value interface{}) error {
-	panic("implement me")
+func (p PocsDB) putItem(_ *databases.ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+	p.data.Items[key.(models.ItemPK)] = value.(models.Item)
+	errorChan <- databases.RequestResult{
+		Data: nil,
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) putCustomer(ctx *databases.ConnectionContext, key interface{}, value interface{}) error {
-	panic("implement me")
+func (p PocsDB) putCustomer(_ *databases.ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+	p.data.Customers[key.(models.CustomerPK)] = value.(models.Customer)
+	errorChan <- databases.RequestResult{
+		Data: nil,
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) putWarehouse(ctx *databases.ConnectionContext, key interface{}, value interface{}) error {
-	panic("implement me")
+func (p PocsDB) putWarehouse(_ *databases.ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+	p.data.Warehouses[key.(models.WarehousePK)] = value.(models.Warehouse)
+	errorChan <- databases.RequestResult{
+		Data: nil,
+		Err:  nil,
+	}
 }
 
-func (p PocsDB) deleteWarehouse(ctx *databases.ConnectionContext, key interface{}) error {
-	panic("implement me")
+func (p PocsDB) deleteWarehouse(_ *databases.ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+	if _, ok := p.data.Warehouses[key.(models.WarehousePK)]; ok {
+		delete(p.data.Warehouses, key.(models.WarehousePK))
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  nil,
+		}
+	} else {
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  databases.ErrKeyNotFound,
+		}
+	}
 }
 
-func (p PocsDB) deleteCustomer(ctx *databases.ConnectionContext, key interface{}) error {
-	panic("implement me")
+func (p PocsDB) deleteCustomer(_ *databases.ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+	if _, ok := p.data.Customers[key.(models.CustomerPK)]; ok {
+		delete(p.data.Customers, key.(models.CustomerPK))
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  nil,
+		}
+	} else {
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  databases.ErrKeyNotFound,
+		}
+	}
 }
 
-func (p PocsDB) deleteItem(ctx *databases.ConnectionContext, key interface{}) error {
-	panic("implement me")
+func (p PocsDB) deleteItem(_ *databases.ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+	if _, ok := p.data.Items[key.(models.ItemPK)]; ok {
+		delete(p.data.Items, key.(models.ItemPK))
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  nil,
+		}
+	} else {
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  databases.ErrKeyNotFound,
+		}
+	}
 }
 
-func (p PocsDB) deleteStock(ctx *databases.ConnectionContext, key interface{}) error {
-	panic("implement me")
+func (p PocsDB) deleteStock(_ *databases.ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+	if _, ok := p.data.Stocks[key.(models.StockPK)]; ok {
+		delete(p.data.Stocks, key.(models.StockPK))
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  nil,
+		}
+	} else {
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  databases.ErrKeyNotFound,
+		}
+	}
 }
 
-func (p PocsDB) deleteOrder(ctx *databases.ConnectionContext, key interface{}) error {
-	panic("implement me")
+func (p PocsDB) deleteOrder(_ *databases.ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+	if _, ok := p.data.Orders[key.(models.OrderPK)]; ok {
+		delete(p.data.Orders, key.(models.OrderPK))
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  nil,
+		}
+	} else {
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  databases.ErrKeyNotFound,
+		}
+	}
 }
 
-func (p PocsDB) deleteOrderLine(ctx *databases.ConnectionContext, key interface{}) error {
-	panic("implement me")
+func (p PocsDB) deleteOrderLine(_ *databases.ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+	if _, ok := p.data.OrderLines[key.(models.OrderLinePK)]; ok {
+		delete(p.data.OrderLines, key.(models.OrderLinePK))
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  nil,
+		}
+	} else {
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  databases.ErrKeyNotFound,
+		}
+	}
 }
 
-func (p PocsDB) deleteNewOrder(ctx *databases.ConnectionContext, key interface{}) error {
-	panic("implement me")
+func (p PocsDB) deleteNewOrder(_ *databases.ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+	if _, ok := p.data.NewOrders[key.(models.NewOrderPK)]; ok {
+		delete(p.data.NewOrders, key.(models.NewOrderPK))
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  nil,
+		}
+	} else {
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  databases.ErrKeyNotFound,
+		}
+	}
 }
 
-func (p PocsDB) deleteHistory(ctx *databases.ConnectionContext, key interface{}) error {
-	panic("implement me")
+func (p PocsDB) deleteHistory(_ *databases.ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+	if _, ok := p.data.History[key.(models.HistoryPK)]; ok {
+		delete(p.data.History, key.(models.HistoryPK))
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  nil,
+		}
+	} else {
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  databases.ErrKeyNotFound,
+		}
+	}
 }
 
-func (p PocsDB) deleteDistrict(ctx *databases.ConnectionContext, key interface{}) error {
-	panic("implement me")
+func (p PocsDB) deleteDistrict(_ *databases.ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+	if _, ok := p.data.Districts[key.(models.DistrictPK)]; ok {
+		delete(p.data.Districts, key.(models.DistrictPK))
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  nil,
+		}
+	} else {
+		errorChan <- databases.RequestResult{
+			Data: nil,
+			Err:  databases.ErrKeyNotFound,
+		}
+	}
 }

@@ -1,18 +1,28 @@
 package databases
 
-import "github.com/google/uuid"
+import (
+	"errors"
+	"github.com/google/uuid"
+)
 
 type ConnectionContext struct {
 	ID uuid.UUID
 }
 
-type Database interface {
+type RequestResult struct {
+	Data interface{}
+	Err  error
+}
+
+type AsyncDatabase interface {
 	Connect() (*ConnectionContext, error)
 	Disconnect(*ConnectionContext) error
-	Put(ctx *ConnectionContext, dataType interface{}, key interface{}, value interface{}) error
-	Get(ctx *ConnectionContext, dataType interface{}, key interface{}) (interface{}, error)
-	Delete(ctx *ConnectionContext, dataType interface{}, key interface{}) error
+	Put(ctx *ConnectionContext, dataType interface{}, key interface{}, value interface{}) (resultChan <-chan RequestResult)
+	Get(ctx *ConnectionContext, dataType interface{}, key interface{}) (resultChan <-chan RequestResult)
+	Delete(ctx *ConnectionContext, dataType interface{}, key interface{}) (resultChan <-chan RequestResult)
 	BeginTransaction(ctx *ConnectionContext) error
 	CommitTransaction(ctx *ConnectionContext) error
 	RollbackTransaction(ctx *ConnectionContext) error
 }
+
+var ErrKeyNotFound = errors.New("key not found")
