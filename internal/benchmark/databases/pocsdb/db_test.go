@@ -177,3 +177,58 @@ func TestPocsDB_Put(t *testing.T) {
 		})
 	}
 }
+
+func TestPocsDB_Get(t *testing.T) {
+	type fields struct {
+		data dataloaders.GeneratedData
+	}
+	type args struct {
+		ctx      *databases.ConnectionContext
+		dataType interface{}
+		key      interface{}
+		want     interface{}
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+	}{
+		{
+			name: "put random item",
+			fields: fields{
+				data: mockData(),
+			},
+			args: args{
+				ctx:      nil,
+				dataType: models.Item{},
+				key:      models.ItemPK{Id: 1},
+				want: models.Item{
+					Id:      1,
+					Name:    "name",
+					Price:   1,
+					ImageId: 1,
+					Data:    "data",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := PocsDB{
+				data: tt.fields.data,
+			}
+			resChan := p.Get(tt.args.ctx, tt.args.dataType, tt.args.key)
+			assert.Eventually(t, func() bool {
+				select {
+				case res := <-resChan:
+					assert.Nil(t, res.Err)
+					assert.Equal(t, tt.args.want, res.Data)
+					return true
+				default:
+					return false
+				}
+			}, time.Second*5, time.Millisecond*100)
+
+		})
+	}
+}

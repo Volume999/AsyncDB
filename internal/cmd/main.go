@@ -5,6 +5,7 @@ import (
 	"POCS_Projects/internal/benchmark/databases/pocsdb"
 	"POCS_Projects/internal/benchmark/dataloaders"
 	"POCS_Projects/internal/models"
+	"POCS_Projects/internal/stores/async"
 	"fmt"
 	"github.com/kr/pretty"
 )
@@ -52,6 +53,15 @@ func main() {
 
 	// Try getting again
 	resChan = db.Get(ctx, models.Item{}, models.ItemPK{Id: 1})
+	res = <-resChan
+	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
+
+	// Customer Store
+	customerStore := async.NewCustomerStore(nil, db)
+	resChan = customerStore.Put(ctx, models.Customer{ID: 1, DistrictId: 1, WarehouseId: 1})
+	res = <-resChan
+	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
+	resChan = customerStore.Get(ctx, models.CustomerPK{ID: 1})
 	res = <-resChan
 	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
 }

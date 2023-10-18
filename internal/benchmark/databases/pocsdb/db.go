@@ -7,10 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type TransactionContext struct {
-	changes map[string]interface{}
-}
-
 type PocsDB struct {
 	data dataloaders.GeneratedData
 }
