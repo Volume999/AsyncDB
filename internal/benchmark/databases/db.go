@@ -5,8 +5,12 @@ import (
 	"github.com/google/uuid"
 )
 
+type Txn interface {
+}
+
 type ConnectionContext struct {
-	ID uuid.UUID
+	ID  uuid.UUID
+	Txn *Txn
 }
 
 type RequestResult struct {

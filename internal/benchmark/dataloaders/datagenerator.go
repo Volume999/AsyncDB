@@ -161,8 +161,8 @@ func (gen DataGeneratorImpl) generateStocks() map[models.StockPK]models.Stock {
 	stocks := make(map[models.StockPK]models.Stock)
 	for w := 0; w < gen.warehouseNumber; w++ {
 		for i := 0; i < 100000; i++ {
-			stocks[models.StockPK{Id: i, WarehouseId: w}] = models.Stock{
-				Id:          i,
+			stocks[models.StockPK{ItemId: i, WarehouseId: w}] = models.Stock{
+				ItemId:      i,
 				WarehouseId: w,
 				Quantity:    generators.RandomIntInRange(10, 100),
 				Dist01:      generators.RandomStrRangeLen(24, 24),

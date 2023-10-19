@@ -17,7 +17,7 @@ func NewStockStore(l *log.Logger, db *pocsdb.PocsDB) Store[models.Stock, models.
 }
 
 func (s StockStore) Put(ctx *databases.ConnectionContext, value models.Stock) <-chan databases.RequestResult {
-	return s.db.Put(ctx, models.Stock{}, models.StockPK{Id: value.Id, WarehouseId: value.WarehouseId}, value)
+	return s.db.Put(ctx, models.Stock{}, models.StockPK{ItemId: value.ItemId, WarehouseId: value.WarehouseId}, value)
 }
 
 func (s StockStore) Get(ctx *databases.ConnectionContext, key models.StockPK) <-chan databases.RequestResult {

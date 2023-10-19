@@ -89,9 +89,9 @@ func mockData() dataloaders.GeneratedData {
 		ImageId: 1,
 		Data:    "data",
 	}
-	stockPK := models.StockPK{Id: 1, WarehouseId: 1}
+	stockPK := models.StockPK{ItemId: 1, WarehouseId: 1}
 	stock := models.Stock{
-		Id:          1,
+		ItemId:      1,
 		WarehouseId: 1,
 		Quantity:    1,
 		Dist01:      "dist01",
