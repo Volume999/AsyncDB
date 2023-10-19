@@ -5,6 +5,8 @@ import (
 	"POCS_Projects/internal/benchmark/databases/pocsdb"
 	"POCS_Projects/internal/benchmark/dataloaders"
 	"POCS_Projects/internal/models"
+	"POCS_Projects/internal/services/order"
+	"POCS_Projects/internal/services/order/cmd"
 	"POCS_Projects/internal/stores/async"
 	"fmt"
 	"github.com/kr/pretty"
@@ -64,4 +66,31 @@ func main() {
 	resChan = customerStore.Get(ctx, models.CustomerPK{ID: 1})
 	res = <-resChan
 	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
+
+	// New Order Service
+	stores := async.Stores{
+		Stock:     async.NewStockStore(nil, db),
+		Item:      async.NewItemStore(nil, db),
+		Customer:  async.NewCustomerStore(nil, db),
+		District:  async.NewDiscrictStore(nil, db),
+		Warehouse: async.NewWarehouseStore(nil, db),
+		Order:     async.NewOrderStore(nil, db),
+		OrderLine: async.NewOrderLineStore(nil, db),
+		History:   async.NewHistoryStore(nil, db),
+		NewOrder:  async.NewNOrderStore(nil, db),
+	}
+	orderService := order.NewMonoService(nil, db, stores)
+	ord := orderService.CreateOrder(cmd.NewOrderCommand{
+		WarehouseId: 1,
+		DistrictId:  1,
+		CustomerId:  5,
+		Items: []cmd.OrderItems{
+			{
+				ItemId:            2,
+				SupplyWarehouseId: 2,
+				Quantity:          2,
+			},
+		},
+	})
+	fmt.Printf("Result: %# v\n", pretty.Formatter(ord))
 }

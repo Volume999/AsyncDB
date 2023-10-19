@@ -32,41 +32,36 @@ func (s *MonoService) CreateOrder(command cmd.NewOrderCommand) cmd.NewOrderRespo
 		return cmd.NewOrderResponse{ExecutionStatus: "Can't Start Transaction: " + err.Error()}
 	}
 	numOfItems := len(command.Items)
-	// Get warehouse and warehouse tax rate
+
+	// Get Warehouse, District and Customer
 	whCh := s.stores.Warehouse.Get(ctx, models.WarehousePK{Id: command.WarehouseId})
-	// Get district and district tax rate
 	dCh := s.stores.District.Get(ctx, models.DistrictPK{Id: command.DistrictId, WarehouseId: command.WarehouseId})
-	// Get customer
 	cCh := s.stores.Customer.Get(ctx, models.CustomerPK{ID: command.CustomerId, DistrictId: command.DistrictId, WarehouseId: command.WarehouseId})
-	// Get District Data for Next Order ItemId
+
+	// Insert Order and New Order
 	dRes := <-dCh
 	if dRes.Err != nil {
 		return cmd.NewOrderResponse{ExecutionStatus: "Error getting district: " + dRes.Err.Error()}
 	}
 	d := dRes.Data.(models.District)
-	// Insert Order and New Order
-	noCh := s.stores.NewOrder.Put(ctx, models.NewOrder{OrderId: d.NextOId, DistrictId: command.DistrictId, WarehouseId: command.WarehouseId})
+	orderId := d.NextOId
+	noCh := s.stores.NewOrder.Put(ctx, models.NewOrder{OrderId: orderId, DistrictId: command.DistrictId, WarehouseId: command.WarehouseId})
 	allLocal := 1
 	for _, item := range command.Items {
 		if item.SupplyWarehouseId != command.WarehouseId {
 			allLocal = 0
 		}
 	}
-	orderId := d.NextOId
 	oCh := s.stores.Order.Put(ctx, models.Order{Id: orderId, DistrictId: command.DistrictId, WarehouseId: command.WarehouseId, CustomerId: command.CustomerId, EntryDate: time.Now(), AllLocal: allLocal, OrderLinesCnt: numOfItems})
-	// Update District Next Order ItemId
 	d.NextOId++
-	dCh = s.stores.District.Put(ctx, d)
+	dPutCh := s.stores.District.Put(ctx, d)
+
 	// Insert Order Lines
-	// Get items of the order
-	itemsChans := make([]<-chan databases.RequestResult, numOfItems)
-	stockChans := make([]<-chan databases.RequestResult, numOfItems)
 	orderLineResponse := make([]<-chan databases.RequestResult, numOfItems)
 	orderLines := make([]cmd.OrderLine, numOfItems)
 	for i, orderItem := range command.Items {
 		itemChan := s.stores.Item.Get(ctx, models.ItemPK{Id: orderItem.ItemId})
 		stockChan := s.stores.Stock.Get(ctx, models.StockPK{ItemId: orderItem.ItemId, WarehouseId: orderItem.SupplyWarehouseId})
-		itemsChans[i], stockChans[i] = itemChan, stockChan
 		itemChanRes := <-itemChan
 		if itemChanRes.Err != nil {
 			// Abort Transaction
@@ -102,10 +97,16 @@ func (s *MonoService) CreateOrder(command cmd.NewOrderCommand) cmd.NewOrderRespo
 			return cmd.NewOrderResponse{ExecutionStatus: "Error updating stock: " + stockRes.Err.Error()}
 		}
 		// Insert Order Line
-		olCh := s.stores.OrderLine.Put(ctx, models.OrderLine{OrderId: d.NextOId,
-			DistrictId: command.DistrictId, WarehouseId: command.WarehouseId, LineNumber: i,
-			ItemId: orderItem.ItemId, SupplyWarehouseId: orderItem.SupplyWarehouseId, Quantity: orderItem.Quantity,
-			Amount: orderLineAmount, DistInfo: distInfo})
+		olCh := s.stores.OrderLine.Put(ctx, models.OrderLine{
+			OrderId:           d.NextOId,
+			DistrictId:        command.DistrictId,
+			WarehouseId:       command.WarehouseId,
+			LineNumber:        i,
+			ItemId:            orderItem.ItemId,
+			SupplyWarehouseId: orderItem.SupplyWarehouseId,
+			Quantity:          orderItem.Quantity,
+			Amount:            orderLineAmount,
+			DistInfo:          distInfo})
 		orderLineResponse[i] = olCh
 		orderLines[i] = cmd.OrderLine{
 			SupplyWarehouseId: orderItem.SupplyWarehouseId,
@@ -126,17 +127,13 @@ func (s *MonoService) CreateOrder(command cmd.NewOrderCommand) cmd.NewOrderRespo
 	if warehouseRes.Err != nil {
 		return cmd.NewOrderResponse{ExecutionStatus: "Error getting warehouse: " + warehouseRes.Err.Error()}
 	}
-	districtRes := <-dCh
-	if districtRes.Err != nil {
-		return cmd.NewOrderResponse{ExecutionStatus: "Error getting district: " + districtRes.Err.Error()}
-	}
 	customerRes := <-cCh
 	if customerRes.Err != nil {
 		return cmd.NewOrderResponse{ExecutionStatus: "Error getting customer: " + customerRes.Err.Error()}
 	}
-	warehouse, district, customer := warehouseRes.Data.(models.Warehouse), districtRes.Data.(models.District), customerRes.Data.(models.Customer)
+	warehouse, customer := warehouseRes.Data.(models.Warehouse), customerRes.Data.(models.Customer)
 	warehouseTax := warehouse.Tax
-	districtTax := district.Tax
+	districtTax := d.Tax
 	customerDiscount := customer.Discount
 	totalAmount = totalAmount * (1 + warehouseTax + districtTax) * (1 - customerDiscount)
 	// Await all put functions
@@ -153,6 +150,10 @@ func (s *MonoService) CreateOrder(command cmd.NewOrderCommand) cmd.NewOrderRespo
 		if olRes.Err != nil {
 			return cmd.NewOrderResponse{ExecutionStatus: "Error inserting order line: " + olRes.Err.Error()}
 		}
+	}
+	dPutRes := <-dPutCh
+	if dPutRes.Err != nil {
+		return cmd.NewOrderResponse{ExecutionStatus: "Error updating district: " + dPutRes.Err.Error()}
 	}
 	// prepare return value
 	return cmd.NewOrderResponse{
@@ -171,7 +172,6 @@ func (s *MonoService) CreateOrder(command cmd.NewOrderCommand) cmd.NewOrderRespo
 		OrderLines:       orderLines,
 		ExecutionStatus:  "OK",
 	}
-
 }
 
 func pickDistInfo(stock models.Stock, dist int) string {

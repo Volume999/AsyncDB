@@ -7,24 +7,24 @@ import (
 	"log"
 )
 
-type OrderLine struct {
+type OrderLineStore struct {
 	l  *log.Logger
 	db *pocsdb.PocsDB
 }
 
-func NewOrderLine(l *log.Logger, db *pocsdb.PocsDB) Store[models.OrderLine, models.OrderLinePK] {
-	return &OrderLine{db: db, l: l}
+func NewOrderLineStore(l *log.Logger, db *pocsdb.PocsDB) Store[models.OrderLine, models.OrderLinePK] {
+	return &OrderLineStore{db: db, l: l}
 }
 
-func (o OrderLine) Put(ctx *databases.ConnectionContext, value models.OrderLine) <-chan databases.RequestResult {
+func (o OrderLineStore) Put(ctx *databases.ConnectionContext, value models.OrderLine) <-chan databases.RequestResult {
 	return o.db.Put(ctx, models.OrderLine{}, models.OrderLinePK{OrderId: value.OrderId,
 		DistrictId: value.DistrictId, WarehouseId: value.WarehouseId, LineNumber: value.LineNumber}, value)
 }
 
-func (o OrderLine) Get(ctx *databases.ConnectionContext, key models.OrderLinePK) <-chan databases.RequestResult {
+func (o OrderLineStore) Get(ctx *databases.ConnectionContext, key models.OrderLinePK) <-chan databases.RequestResult {
 	return o.db.Get(ctx, models.OrderLine{}, key)
 }
 
-func (o OrderLine) Delete(ctx *databases.ConnectionContext, key models.OrderLinePK) <-chan databases.RequestResult {
+func (o OrderLineStore) Delete(ctx *databases.ConnectionContext, key models.OrderLinePK) <-chan databases.RequestResult {
 	return o.db.Delete(ctx, models.OrderLine{}, key)
 }
