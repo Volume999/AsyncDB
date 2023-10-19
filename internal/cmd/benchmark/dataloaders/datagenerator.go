@@ -1,8 +1,8 @@
 package dataloaders
 
 import (
-	"POCS_Projects/internal/benchmark"
-	"POCS_Projects/internal/benchmark/dataloaders/generators"
+	"POCS_Projects/internal/cmd/benchmark/dataloaders/generators"
+	commands "POCS_Projects/internal/config"
 	"POCS_Projects/internal/models"
 	"fmt"
 	"log"
@@ -37,16 +37,16 @@ type GeneratedData struct {
 
 type DataGenerator interface {
 	// GenerateData generates data for the application
-	GenerateData(constants benchmark.Constants) (GeneratedData, error)
+	GenerateData(constants commands.Constants) (GeneratedData, error)
 }
 
 type DataGeneratorImpl struct {
 	l               *log.Logger
 	warehouseNumber int
-	consts          benchmark.Constants
+	consts          commands.Constants
 }
 
-func NewDataGeneratorImpl(warehouseNumber int, consts benchmark.Constants, l *log.Logger) DataGeneratorImpl {
+func NewDataGeneratorImpl(warehouseNumber int, consts commands.Constants, l *log.Logger) DataGeneratorImpl {
 	return DataGeneratorImpl{
 		l:               l,
 		warehouseNumber: warehouseNumber,

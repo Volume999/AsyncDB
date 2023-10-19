@@ -1,8 +1,8 @@
 package pocsdb
 
 import (
-	"POCS_Projects/internal/benchmark/databases"
-	"POCS_Projects/internal/benchmark/dataloaders"
+	"POCS_Projects/internal/cmd/benchmark/databases"
+	"POCS_Projects/internal/cmd/benchmark/dataloaders"
 	"POCS_Projects/internal/models"
 	"github.com/google/uuid"
 )

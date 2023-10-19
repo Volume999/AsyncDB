@@ -1,7 +1,7 @@
 package async
 
 import (
-	"POCS_Projects/internal/benchmark/databases"
+	"POCS_Projects/internal/cmd/benchmark/databases"
 	"POCS_Projects/internal/models"
 )
 
