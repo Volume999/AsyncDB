@@ -1,12 +1,11 @@
 package main
 
 import (
-	"POCS_Projects/internal/benchmark"
-	"POCS_Projects/internal/benchmark/databases/pocsdb"
-	"POCS_Projects/internal/benchmark/dataloaders"
+	commands2 "POCS_Projects/internal/cmd"
+	"POCS_Projects/internal/cmd/benchmark/databases/pocsdb"
+	"POCS_Projects/internal/cmd/benchmark/dataloaders"
 	"POCS_Projects/internal/models"
 	"POCS_Projects/internal/services/order"
-	"POCS_Projects/internal/services/order/cmd"
 	"POCS_Projects/internal/stores/async"
 	"fmt"
 	"github.com/kr/pretty"
@@ -18,7 +17,7 @@ const (
 
 func main() {
 	// Try generating data
-	constants := benchmark.NewConstants()
+	constants := commands2.NewConstants()
 	data, _ := dataloaders.NewDataGeneratorImpl(1, constants, nil).GenerateData()
 	fmt.Println("Data generated successfully!")
 	fmt.Println("Warehouses: ", len(data.Warehouses))
@@ -80,11 +79,11 @@ func main() {
 		NewOrder:  async.NewNOrderStore(nil, db),
 	}
 	orderService := order.NewMonoService(nil, db, stores)
-	ord := orderService.CreateOrder(cmd.NewOrderCommand{
+	ord := orderService.CreateOrder(order.Command{
 		WarehouseId: 1,
 		DistrictId:  1,
 		CustomerId:  5,
-		Items: []cmd.OrderItems{
+		Items: []order.CommandItems{
 			{
 				ItemId:            2,
 				SupplyWarehouseId: 2,
