@@ -155,6 +155,11 @@ func (s *MonoService) CreateOrder(command Command) Response {
 	if dPutRes.Err != nil {
 		return Response{ExecutionStatus: "Error updating district: " + dPutRes.Err.Error()}
 	}
+	// Commit Transaction
+	err = s.db.CommitTransaction(ctx)
+	if err != nil {
+		return Response{ExecutionStatus: "Error committing transaction: " + err.Error()}
+	}
 	// prepare return value
 	return Response{
 		WarehouseId:      command.WarehouseId,
@@ -175,7 +180,7 @@ func (s *MonoService) CreateOrder(command Command) Response {
 }
 
 func pickDistInfo(stock models.Stock, dist int) string {
-	infoDistMap := map[int]string{
+	return map[int]string{
 		1:  stock.Dist01,
 		2:  stock.Dist02,
 		3:  stock.Dist03,
@@ -186,6 +191,5 @@ func pickDistInfo(stock models.Stock, dist int) string {
 		8:  stock.Dist08,
 		9:  stock.Dist09,
 		10: stock.Dist10,
-	}
-	return infoDistMap[dist]
+	}[dist]
 }
