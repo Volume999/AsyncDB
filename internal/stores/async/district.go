@@ -16,14 +16,14 @@ func NewDiscrictStore(l *log.Logger, db *pocsdb.PocsDB) Store[models.District, m
 	return &DisctrictStore{db: db, l: l}
 }
 
-func (d *DisctrictStore) Put(ctx *databases.ConnectionContext, value models.District) <-chan databases.RequestResult {
+func (d *DisctrictStore) Put(ctx *pocsdb.ConnectionContext, value models.District) <-chan databases.RequestResult {
 	return d.db.Put(ctx, models.District{}, models.DistrictPK{Id: value.Id}, value)
 }
 
-func (d *DisctrictStore) Get(ctx *databases.ConnectionContext, key models.DistrictPK) <-chan databases.RequestResult {
+func (d *DisctrictStore) Get(ctx *pocsdb.ConnectionContext, key models.DistrictPK) <-chan databases.RequestResult {
 	return d.db.Get(ctx, models.District{}, key)
 }
 
-func (d *DisctrictStore) Delete(ctx *databases.ConnectionContext, key models.DistrictPK) <-chan databases.RequestResult {
+func (d *DisctrictStore) Delete(ctx *pocsdb.ConnectionContext, key models.DistrictPK) <-chan databases.RequestResult {
 	return d.db.Delete(ctx, models.District{}, key)
 }

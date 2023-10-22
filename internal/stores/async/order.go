@@ -16,14 +16,14 @@ func NewOrderStore(l *log.Logger, db *pocsdb.PocsDB) Store[models.Order, models.
 	return &OrderStore{db: db, l: l}
 }
 
-func (o OrderStore) Put(ctx *databases.ConnectionContext, value models.Order) <-chan databases.RequestResult {
+func (o OrderStore) Put(ctx *pocsdb.ConnectionContext, value models.Order) <-chan databases.RequestResult {
 	return o.db.Put(ctx, models.Order{}, models.OrderPK{Id: value.Id, DistrictId: value.DistrictId, WarehouseId: value.WarehouseId}, value)
 }
 
-func (o OrderStore) Get(ctx *databases.ConnectionContext, key models.OrderPK) <-chan databases.RequestResult {
+func (o OrderStore) Get(ctx *pocsdb.ConnectionContext, key models.OrderPK) <-chan databases.RequestResult {
 	return o.db.Get(ctx, models.Order{}, key)
 }
 
-func (o OrderStore) Delete(ctx *databases.ConnectionContext, key models.OrderPK) <-chan databases.RequestResult {
+func (o OrderStore) Delete(ctx *pocsdb.ConnectionContext, key models.OrderPK) <-chan databases.RequestResult {
 	return o.db.Delete(ctx, models.Order{}, key)
 }

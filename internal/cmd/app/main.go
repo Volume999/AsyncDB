@@ -30,7 +30,9 @@ func main() {
 	fmt.Println("History: ", len(data.History))
 	fmt.Println("Districts: ", len(data.Districts))
 
-	db := pocsdb.NewPocsDB()
+	tm := pocsdb.NewTransactionManager()
+	lm := pocsdb.NewLockManager()
+	db := pocsdb.NewPocsDB(tm, lm)
 	_ = db.LoadData(data)
 	ctx, _ := db.Connect()
 

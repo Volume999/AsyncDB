@@ -16,14 +16,14 @@ func NewNOrderStore(l *log.Logger, db *pocsdb.PocsDB) Store[models.NewOrder, mod
 	return &NOrderStore{db: db, l: l}
 }
 
-func (n *NOrderStore) Put(ctx *databases.ConnectionContext, value models.NewOrder) <-chan databases.RequestResult {
+func (n *NOrderStore) Put(ctx *pocsdb.ConnectionContext, value models.NewOrder) <-chan databases.RequestResult {
 	return n.db.Put(ctx, models.NewOrder{}, models.NewOrderPK{OrderId: value.OrderId, DistrictId: value.DistrictId, WarehouseId: value.WarehouseId}, value)
 }
 
-func (n *NOrderStore) Get(ctx *databases.ConnectionContext, key models.NewOrderPK) <-chan databases.RequestResult {
+func (n *NOrderStore) Get(ctx *pocsdb.ConnectionContext, key models.NewOrderPK) <-chan databases.RequestResult {
 	return n.db.Get(ctx, models.NewOrder{}, key)
 }
 
-func (n *NOrderStore) Delete(ctx *databases.ConnectionContext, key models.NewOrderPK) <-chan databases.RequestResult {
+func (n *NOrderStore) Delete(ctx *pocsdb.ConnectionContext, key models.NewOrderPK) <-chan databases.RequestResult {
 	return n.db.Delete(ctx, models.NewOrder{}, key)
 }

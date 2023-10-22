@@ -2,13 +2,14 @@ package async
 
 import (
 	"POCS_Projects/internal/cmd/benchmark/databases"
+	"POCS_Projects/internal/cmd/benchmark/databases/pocsdb"
 	"POCS_Projects/internal/models"
 )
 
 type Store[V any, K any] interface {
-	Put(ctx *databases.ConnectionContext, value V) <-chan databases.RequestResult
-	Get(ctx *databases.ConnectionContext, key K) <-chan databases.RequestResult
-	Delete(ctx *databases.ConnectionContext, key K) <-chan databases.RequestResult
+	Put(ctx *pocsdb.ConnectionContext, value V) <-chan databases.RequestResult
+	Get(ctx *pocsdb.ConnectionContext, key K) <-chan databases.RequestResult
+	Delete(ctx *pocsdb.ConnectionContext, key K) <-chan databases.RequestResult
 }
 
 type Stores struct {

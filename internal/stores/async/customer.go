@@ -12,15 +12,15 @@ type CustomerStore struct {
 	db *pocsdb.PocsDB
 }
 
-func (c *CustomerStore) Put(ctx *databases.ConnectionContext, value models.Customer) <-chan databases.RequestResult {
+func (c *CustomerStore) Put(ctx *pocsdb.ConnectionContext, value models.Customer) <-chan databases.RequestResult {
 	return c.db.Put(ctx, models.Customer{}, models.CustomerPK{ID: value.ID}, value)
 }
 
-func (c *CustomerStore) Get(ctx *databases.ConnectionContext, key models.CustomerPK) <-chan databases.RequestResult {
+func (c *CustomerStore) Get(ctx *pocsdb.ConnectionContext, key models.CustomerPK) <-chan databases.RequestResult {
 	return c.db.Get(ctx, models.Customer{}, key)
 }
 
-func (c *CustomerStore) Delete(ctx *databases.ConnectionContext, key models.CustomerPK) <-chan databases.RequestResult {
+func (c *CustomerStore) Delete(ctx *pocsdb.ConnectionContext, key models.CustomerPK) <-chan databases.RequestResult {
 	return c.db.Delete(ctx, models.Customer{}, key)
 }
 

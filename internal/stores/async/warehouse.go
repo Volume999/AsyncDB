@@ -12,15 +12,15 @@ type WarehouseStore struct {
 	db *pocsdb.PocsDB
 }
 
-func (w WarehouseStore) Put(ctx *databases.ConnectionContext, value models.Warehouse) <-chan databases.RequestResult {
+func (w WarehouseStore) Put(ctx *pocsdb.ConnectionContext, value models.Warehouse) <-chan databases.RequestResult {
 	return w.db.Put(ctx, models.Warehouse{}, models.WarehousePK{Id: value.Id}, value)
 }
 
-func (w WarehouseStore) Get(ctx *databases.ConnectionContext, key models.WarehousePK) <-chan databases.RequestResult {
+func (w WarehouseStore) Get(ctx *pocsdb.ConnectionContext, key models.WarehousePK) <-chan databases.RequestResult {
 	return w.db.Get(ctx, models.Warehouse{}, key)
 }
 
-func (w WarehouseStore) Delete(ctx *databases.ConnectionContext, key models.WarehousePK) <-chan databases.RequestResult {
+func (w WarehouseStore) Delete(ctx *pocsdb.ConnectionContext, key models.WarehousePK) <-chan databases.RequestResult {
 	return w.db.Delete(ctx, models.Warehouse{}, key)
 }
 

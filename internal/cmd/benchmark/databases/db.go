@@ -2,16 +2,11 @@ package databases
 
 import (
 	"errors"
-	"github.com/google/uuid"
 )
 
-type Txn interface {
-}
+type Txn interface{}
 
-type ConnectionContext struct {
-	ID  uuid.UUID
-	Txn *Txn
-}
+type ConnectionContext interface{}
 
 type RequestResult struct {
 	Data interface{}
