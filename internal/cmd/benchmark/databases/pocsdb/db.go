@@ -4,6 +4,7 @@ import (
 	"POCS_Projects/internal/cmd/benchmark/databases"
 	"POCS_Projects/internal/cmd/benchmark/dataloaders"
 	"POCS_Projects/internal/models"
+	"errors"
 	"github.com/google/uuid"
 )
 
@@ -40,8 +41,12 @@ func (p *PocsDB) Connect() (*ConnectionContext, error) {
 }
 
 func (p *PocsDB) Disconnect(context *ConnectionContext) error {
-	// TODO implement me
-	return nil
+	var rollbackErr, lockReleaseErr error
+	if context.Txn != nil {
+		rollbackErr = p.RollbackTransaction(context)
+	}
+	lockReleaseErr = p.lManager.ReleaseLocks(context.ID)
+	return errors.Join(rollbackErr, lockReleaseErr)
 }
 
 func (p *PocsDB) Put(ctx *ConnectionContext, dataType interface{}, key interface{}, value interface{}) <-chan databases.RequestResult {
