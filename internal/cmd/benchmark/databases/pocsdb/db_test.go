@@ -1,7 +1,6 @@
 package pocsdb
 
 import (
-	"POCS_Projects/internal/cmd/benchmark/databases"
 	"POCS_Projects/internal/cmd/benchmark/dataloaders"
 	"POCS_Projects/internal/models"
 	"github.com/stretchr/testify/assert"
@@ -129,7 +128,7 @@ func TestPocsDB_Put(t *testing.T) {
 		data dataloaders.GeneratedData
 	}
 	type args struct {
-		ctx      *databases.ConnectionContext
+		ctx      *ConnectionContext
 		dataType interface{}
 		key      interface{}
 		value    interface{}
@@ -183,7 +182,7 @@ func TestPocsDB_Get(t *testing.T) {
 		data dataloaders.GeneratedData
 	}
 	type args struct {
-		ctx      *databases.ConnectionContext
+		ctx      *ConnectionContext
 		dataType interface{}
 		key      interface{}
 		want     interface{}

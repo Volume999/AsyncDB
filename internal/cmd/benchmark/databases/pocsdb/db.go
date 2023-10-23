@@ -4,7 +4,6 @@ import (
 	"POCS_Projects/internal/cmd/benchmark/databases"
 	"POCS_Projects/internal/cmd/benchmark/dataloaders"
 	"POCS_Projects/internal/models"
-	"fmt"
 	"github.com/google/uuid"
 )
 
@@ -46,6 +45,7 @@ func (p *PocsDB) Disconnect(context *ConnectionContext) error {
 }
 
 func (p *PocsDB) Put(ctx *ConnectionContext, dataType interface{}, key interface{}, value interface{}) <-chan databases.RequestResult {
+	// Todo: Change
 	resultChan := make(chan databases.RequestResult)
 	switch dataType.(type) {
 	case models.Warehouse:
@@ -73,6 +73,7 @@ func (p *PocsDB) Put(ctx *ConnectionContext, dataType interface{}, key interface
 }
 
 func (p *PocsDB) Get(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
+	// Todo: Change
 	resultChan := make(chan databases.RequestResult)
 	switch dataType.(type) {
 	case models.Warehouse:
@@ -100,6 +101,7 @@ func (p *PocsDB) Get(ctx *ConnectionContext, dataType interface{}, key interface
 }
 
 func (p *PocsDB) Delete(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
+	// Todo: Change Delete
 	resultChan := make(chan databases.RequestResult)
 	switch dataType.(type) {
 	case models.Warehouse:
@@ -136,6 +138,7 @@ func (p *PocsDB) BeginTransaction(ctx *ConnectionContext) error {
 }
 
 func (p *PocsDB) CommitTransaction(ctx *ConnectionContext) error {
+	// Todo: Implement Persisting Commit changes
 	err := p.tManager.DeleteLog(ctx.ID)
 	if err != nil {
 		return err
@@ -144,18 +147,8 @@ func (p *PocsDB) CommitTransaction(ctx *ConnectionContext) error {
 }
 
 func (p *PocsDB) RollbackTransaction(ctx *ConnectionContext) error {
-	log, err := p.tManager.GetLog(ctx.ID)
-	if err != nil {
-		return err
-	}
-	ctx.Mode = Aborting
-	for _, action := range log.actionList {
-		err := p.reverseAction(ctx, action)
-		if err != nil {
-			return err
-		}
-	}
-	err = p.tManager.DeleteLog(ctx.ID)
+	// TODO: Do I need to do anything about concurrent queries?
+	err := p.tManager.DeleteLog(ctx.ID)
 	if err != nil {
 		return err
 	}
@@ -430,111 +423,4 @@ func (p *PocsDB) deleteDistrict(_ *ConnectionContext, key interface{}, errorChan
 			Err:  databases.ErrKeyNotFound,
 		}
 	}
-}
-
-func (p *PocsDB) reverseAction(ctx *ConnectionContext, action Action) error {
-	var err error
-	switch action.actionType {
-	case LInsert:
-		err = p.reverseInsert(ctx, action)
-	case LDelete:
-		err = p.reverseDelete(ctx, action)
-	case LUpdate:
-		err = p.reverseUpdate(ctx, action)
-	}
-	return err
-}
-
-func (p *PocsDB) reverseInsert(ctx *ConnectionContext, action Action) error {
-	// Todo: Better type validation
-	resChan := make(chan databases.RequestResult)
-	switch action.dataType.(type) {
-	case models.Warehouse:
-		go p.deleteWarehouse(ctx, action.key, resChan)
-	case models.Customer:
-		go p.deleteCustomer(ctx, action.key, resChan)
-	case models.Item:
-		go p.deleteItem(ctx, action.key, resChan)
-	case models.Stock:
-		go p.deleteStock(ctx, action.key, resChan)
-	case models.Order:
-		go p.deleteOrder(ctx, action.key, resChan)
-	case models.OrderLine:
-		go p.deleteOrderLine(ctx, action.key, resChan)
-	case models.NewOrder:
-		go p.deleteNewOrder(ctx, action.key, resChan)
-	case models.History:
-		go p.deleteHistory(ctx, action.key, resChan)
-	case models.District:
-		go p.deleteDistrict(ctx, action.key, resChan)
-	default:
-		return fmt.Errorf("reverseInsert: invalid type %T", action.dataType)
-	}
-	val := <-resChan
-	if val.Err != nil {
-		return val.Err
-	}
-	return nil
-}
-
-func (p *PocsDB) reverseDelete(ctx *ConnectionContext, action Action) error {
-	resChan := make(chan databases.RequestResult)
-	switch action.dataType.(type) {
-	case models.Warehouse:
-		go p.putWarehouse(ctx, action.key, action.value, resChan)
-	case models.Customer:
-		go p.putCustomer(ctx, action.key, action.value, resChan)
-	case models.Item:
-		go p.putItem(ctx, action.key, action.value, resChan)
-	case models.Stock:
-		go p.putStock(ctx, action.key, action.value, resChan)
-	case models.Order:
-		go p.putOrder(ctx, action.key, action.value, resChan)
-	case models.OrderLine:
-		go p.putOrderLine(ctx, action.key, action.value, resChan)
-	case models.NewOrder:
-		go p.putNewOrder(ctx, action.key, action.value, resChan)
-	case models.History:
-		go p.putHistory(ctx, action.key, action.value, resChan)
-	case models.District:
-		go p.putDistrict(ctx, action.key, action.value, resChan)
-	default:
-		return fmt.Errorf("reverseDelete: invalid type %T", action.dataType)
-	}
-	val := <-resChan
-	if val.Err != nil {
-		return val.Err
-	}
-	return nil
-}
-
-func (p *PocsDB) reverseUpdate(ctx *ConnectionContext, action Action) error {
-	resChan := make(chan databases.RequestResult)
-	switch action.dataType.(type) {
-	case models.Warehouse:
-		go p.putWarehouse(ctx, action.key, action.prevValue, resChan)
-	case models.Customer:
-		go p.putCustomer(ctx, action.key, action.prevValue, resChan)
-	case models.Item:
-		go p.putItem(ctx, action.key, action.prevValue, resChan)
-	case models.Stock:
-		go p.putStock(ctx, action.key, action.prevValue, resChan)
-	case models.Order:
-		go p.putOrder(ctx, action.key, action.prevValue, resChan)
-	case models.OrderLine:
-		go p.putOrderLine(ctx, action.key, action.prevValue, resChan)
-	case models.NewOrder:
-		go p.putNewOrder(ctx, action.key, action.prevValue, resChan)
-	case models.History:
-		go p.putHistory(ctx, action.key, action.prevValue, resChan)
-	case models.District:
-		go p.putDistrict(ctx, action.key, action.prevValue, resChan)
-	default:
-		return fmt.Errorf("reverseUpdate: invalid type %T", action.dataType)
-	}
-	val := <-resChan
-	if val.Err != nil {
-		return val.Err
-	}
-	return nil
 }
