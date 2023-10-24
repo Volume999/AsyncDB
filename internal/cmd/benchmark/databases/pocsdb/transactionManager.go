@@ -19,8 +19,8 @@ var (
 
 type Txn struct {
 	txnID     uuid.UUID
-	tLog      TransactionLog
-	tLogMutex sync.Mutex
+	tLog      *TransactionLog
+	tLogMutex *sync.Mutex
 }
 
 type Action struct {
@@ -63,7 +63,18 @@ func (t *TransactionManager) BeginTransaction(ConnId uuid.UUID) (*Txn, error) {
 	}
 	txn := &Txn{
 		txnID: uuid.New(),
-		tLog:  TransactionLog{},
+		tLog: &TransactionLog{
+			WarehouseLog: make(map[models.WarehousePK]LogEntry[models.Warehouse]),
+			StockLog:     make(map[models.StockPK]LogEntry[models.Stock]),
+			OrderLog:     make(map[models.OrderPK]LogEntry[models.Order]),
+			NewOrderLog:  make(map[models.NewOrderPK]LogEntry[models.NewOrder]),
+			DistrictLog:  make(map[models.DistrictPK]LogEntry[models.District]),
+			CustomerLog:  make(map[models.CustomerPK]LogEntry[models.Customer]),
+			ItemLog:      make(map[models.ItemPK]LogEntry[models.Item]),
+			OrderLineLog: make(map[models.OrderLinePK]LogEntry[models.OrderLine]),
+			HistoryLog:   make(map[models.HistoryPK]LogEntry[models.History]),
+		},
+		tLogMutex: &sync.Mutex{},
 	}
 	t.tLogs[ConnId] = txn
 	return txn, nil
@@ -77,32 +88,78 @@ func (t *TransactionManager) DeleteLog(ConnId uuid.UUID) error {
 	return nil
 }
 
-func (t *TransactionManager) addAction(txn *Txn, a Action) {
+func (t *TransactionLog) addAction(a Action) {
 	switch a.DataType.(type) {
 	case models.Warehouse:
-		txn.tLog.WarehouseLog[a.Key.(models.WarehousePK)] = LogEntry[models.Warehouse]{Op: a.Op, Value: a.Value.(models.Warehouse)}
+		if a.Value == nil {
+			t.WarehouseLog[a.Key.(models.WarehousePK)] = LogEntry[models.Warehouse]{Op: a.Op}
+			return
+		} else {
+			t.WarehouseLog[a.Key.(models.WarehousePK)] = LogEntry[models.Warehouse]{Op: a.Op, Value: a.Value.(models.Warehouse)}
+		}
 	case models.Stock:
-		txn.tLog.StockLog[a.Key.(models.StockPK)] = LogEntry[models.Stock]{Op: a.Op, Value: a.Value.(models.Stock)}
+		if a.Value == nil {
+			t.StockLog[a.Key.(models.StockPK)] = LogEntry[models.Stock]{Op: a.Op}
+			return
+		} else {
+			t.StockLog[a.Key.(models.StockPK)] = LogEntry[models.Stock]{Op: a.Op, Value: a.Value.(models.Stock)}
+		}
 	case models.Order:
-		txn.tLog.OrderLog[a.Key.(models.OrderPK)] = LogEntry[models.Order]{Op: a.Op, Value: a.Value.(models.Order)}
+		if a.Value == nil {
+			t.OrderLog[a.Key.(models.OrderPK)] = LogEntry[models.Order]{Op: a.Op}
+			return
+		} else {
+			t.OrderLog[a.Key.(models.OrderPK)] = LogEntry[models.Order]{Op: a.Op, Value: a.Value.(models.Order)}
+		}
 	case models.NewOrder:
-		txn.tLog.NewOrderLog[a.Key.(models.NewOrderPK)] = LogEntry[models.NewOrder]{Op: a.Op, Value: a.Value.(models.NewOrder)}
+		if a.Value == nil {
+			t.NewOrderLog[a.Key.(models.NewOrderPK)] = LogEntry[models.NewOrder]{Op: a.Op}
+			return
+		} else {
+			t.NewOrderLog[a.Key.(models.NewOrderPK)] = LogEntry[models.NewOrder]{Op: a.Op, Value: a.Value.(models.NewOrder)}
+		}
 	case models.District:
-		txn.tLog.DistrictLog[a.Key.(models.DistrictPK)] = LogEntry[models.District]{Op: a.Op, Value: a.Value.(models.District)}
+		if a.Value == nil {
+			t.DistrictLog[a.Key.(models.DistrictPK)] = LogEntry[models.District]{Op: a.Op}
+			return
+		} else {
+			t.DistrictLog[a.Key.(models.DistrictPK)] = LogEntry[models.District]{Op: a.Op, Value: a.Value.(models.District)}
+		}
 	case models.Customer:
-		txn.tLog.CustomerLog[a.Key.(models.CustomerPK)] = LogEntry[models.Customer]{Op: a.Op, Value: a.Value.(models.Customer)}
+		if a.Value == nil {
+			t.CustomerLog[a.Key.(models.CustomerPK)] = LogEntry[models.Customer]{Op: a.Op}
+			return
+		} else {
+			t.CustomerLog[a.Key.(models.CustomerPK)] = LogEntry[models.Customer]{Op: a.Op, Value: a.Value.(models.Customer)}
+		}
 	case models.Item:
-		txn.tLog.ItemLog[a.Key.(models.ItemPK)] = LogEntry[models.Item]{Op: a.Op, Value: a.Value.(models.Item)}
+		if a.Value == nil {
+			t.ItemLog[a.Key.(models.ItemPK)] = LogEntry[models.Item]{Op: a.Op}
+			return
+		} else {
+			t.ItemLog[a.Key.(models.ItemPK)] = LogEntry[models.Item]{Op: a.Op, Value: a.Value.(models.Item)}
+		}
 	case models.OrderLine:
-		txn.tLog.OrderLineLog[a.Key.(models.OrderLinePK)] = LogEntry[models.OrderLine]{Op: a.Op, Value: a.Value.(models.OrderLine)}
+		if a.Value == nil {
+			t.OrderLineLog[a.Key.(models.OrderLinePK)] = LogEntry[models.OrderLine]{Op: a.Op}
+			return
+		} else {
+			t.OrderLineLog[a.Key.(models.OrderLinePK)] = LogEntry[models.OrderLine]{Op: a.Op, Value: a.Value.(models.OrderLine)}
+		}
 	case models.History:
-		txn.tLog.HistoryLog[a.Key.(models.HistoryPK)] = LogEntry[models.History]{Op: a.Op, Value: a.Value.(models.History)}
+		if a.Value == nil {
+			t.HistoryLog[a.Key.(models.HistoryPK)] = LogEntry[models.History]{Op: a.Op}
+			return
+		} else {
+			t.HistoryLog[a.Key.(models.HistoryPK)] = LogEntry[models.History]{Op: a.Op, Value: a.Value.(models.History)}
+		}
 	}
 }
 
-func (t *TransactionManager) GetLog(ConnId uuid.UUID) (TransactionLog, error) {
+func (t *TransactionManager) GetLog(ConnId uuid.UUID) (*TransactionLog, error) {
+	// TODO: Do we need this function?
 	if _, ok := t.tLogs[ConnId]; !ok {
-		return TransactionLog{}, ErrXactNotFound
+		return &TransactionLog{}, ErrXactNotFound
 	}
 	return t.tLogs[ConnId].tLog, nil
 }

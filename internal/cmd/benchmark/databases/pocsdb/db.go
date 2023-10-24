@@ -12,6 +12,7 @@ const (
 	Active = iota
 	Committing
 	Aborting
+	Ready
 )
 
 type ConnectionContext struct {
@@ -50,7 +51,163 @@ func (p *PocsDB) Disconnect(context *ConnectionContext) error {
 }
 
 func (p *PocsDB) Put(ctx *ConnectionContext, dataType interface{}, key interface{}, value interface{}) <-chan databases.RequestResult {
-	// Todo: Change
+	resultChan := make(chan databases.RequestResult)
+	go func() {
+		implTransaction := ctx.Txn == nil
+		if implTransaction {
+			txn, err := p.tManager.BeginTransaction(ctx.ID)
+			if err != nil {
+				resultChan <- databases.RequestResult{
+					Data: nil,
+					Err:  err,
+				}
+				return
+			}
+			ctx.Txn = txn
+		}
+		txn := ctx.Txn
+		txn.tLogMutex.Lock()
+		txn.tLog.addAction(Action{
+			Op:       LPut,
+			DataType: dataType,
+			Key:      key,
+			Value:    value,
+		})
+		txn.tLogMutex.Unlock()
+		var err error
+		if implTransaction {
+			err = p.CommitTransaction(ctx)
+		}
+		resultChan <- databases.RequestResult{
+			Data: nil,
+			Err:  err,
+		}
+	}()
+	return resultChan
+}
+
+func (p *PocsDB) Get(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
+	resultChan := make(chan databases.RequestResult)
+	go func() {
+		implTransaction := ctx.Txn == nil
+		if implTransaction {
+			txn, err := p.tManager.BeginTransaction(ctx.ID)
+			if err != nil {
+				resultChan <- databases.RequestResult{
+					Data: nil,
+					Err:  err,
+				}
+				return
+			}
+			ctx.Txn = txn
+		}
+		var err error
+		res := <-p.getValue(ctx, dataType, key)
+		if implTransaction {
+			err = p.CommitTransaction(ctx)
+		}
+		resultChan <- databases.RequestResult{
+			Data: res.Data,
+			Err:  errors.Join(err, res.Err),
+		}
+	}()
+	return resultChan
+}
+
+func (p *PocsDB) Delete(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
+	resultChan := make(chan databases.RequestResult)
+	go func() {
+		implTransaction := ctx.Txn == nil
+		if implTransaction {
+			txn, err := p.tManager.BeginTransaction(ctx.ID)
+			if err != nil {
+				resultChan <- databases.RequestResult{
+					Data: nil,
+					Err:  err,
+				}
+				return
+			}
+			ctx.Txn = txn
+		}
+		txn := ctx.Txn
+		txn.tLogMutex.Lock()
+		txn.tLog.addAction(Action{
+			Op:       LDelete,
+			DataType: dataType,
+			Key:      key,
+			Value:    nil,
+		})
+		txn.tLogMutex.Unlock()
+		var err error
+		if implTransaction {
+			err = p.CommitTransaction(ctx)
+		}
+		resultChan <- databases.RequestResult{
+			Data: nil,
+			Err:  err,
+		}
+	}()
+	return resultChan
+}
+
+func (p *PocsDB) BeginTransaction(ctx *ConnectionContext) error {
+	txn, err := p.tManager.BeginTransaction(ctx.ID)
+	if err != nil {
+		return err
+	}
+	ctx.Txn = txn
+	ctx.Mode = Active
+	return nil
+}
+
+func (p *PocsDB) CommitTransaction(ctx *ConnectionContext) error {
+	// Todo: Wait for concurrent queries to finish?
+	ctx.Mode = Committing
+	txn := ctx.Txn
+	txn.tLogMutex.Lock()
+	p.applyLogs(txn.tLog)
+	txn.tLogMutex.Unlock()
+	err := p.tManager.DeleteLog(ctx.ID)
+	ctx.Txn = nil
+	ctx.Mode = Ready
+	return err
+}
+
+func (p *PocsDB) RollbackTransaction(ctx *ConnectionContext) error {
+	ctx.Mode = Aborting
+	// Todo: Cancel concurrent queries?
+	err := p.tManager.DeleteLog(ctx.ID)
+	ctx.Mode = Ready
+	return err
+}
+
+func (p *PocsDB) applyLogs(log *TransactionLog) {
+	applyLogToData[models.WarehousePK, models.Warehouse](p.data.Warehouses, log.WarehouseLog)
+	applyLogToData[models.StockPK, models.Stock](p.data.Stocks, log.StockLog)
+	applyLogToData[models.OrderPK, models.Order](p.data.Orders, log.OrderLog)
+	applyLogToData[models.NewOrderPK, models.NewOrder](p.data.NewOrders, log.NewOrderLog)
+	applyLogToData[models.DistrictPK, models.District](p.data.Districts, log.DistrictLog)
+	applyLogToData[models.CustomerPK, models.Customer](p.data.Customers, log.CustomerLog)
+	applyLogToData[models.ItemPK, models.Item](p.data.Items, log.ItemLog)
+	applyLogToData[models.OrderLinePK, models.OrderLine](p.data.OrderLines, log.OrderLineLog)
+	applyLogToData[models.HistoryPK, models.History](p.data.History, log.HistoryLog)
+}
+
+func applyLogToData[K comparable, V any](
+	data map[K]V,
+	logMap map[K]LogEntry[V],
+) {
+	for key, value := range logMap {
+		switch value.Op {
+		case LPut:
+			data[key] = value.Value
+		case LDelete:
+			delete(data, key)
+		}
+	}
+}
+
+func (p *PocsDB) putValue(ctx *ConnectionContext, dataType interface{}, key interface{}, value interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	switch dataType.(type) {
 	case models.Warehouse:
@@ -77,8 +234,7 @@ func (p *PocsDB) Put(ctx *ConnectionContext, dataType interface{}, key interface
 	return resultChan
 }
 
-func (p *PocsDB) Get(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
-	// Todo: Change
+func (p *PocsDB) getValue(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	switch dataType.(type) {
 	case models.Warehouse:
@@ -105,8 +261,7 @@ func (p *PocsDB) Get(ctx *ConnectionContext, dataType interface{}, key interface
 	return resultChan
 }
 
-func (p *PocsDB) Delete(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
-	// Todo: Change Delete
+func (p *PocsDB) deleteValue(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	switch dataType.(type) {
 	case models.Warehouse:
@@ -131,33 +286,6 @@ func (p *PocsDB) Delete(ctx *ConnectionContext, dataType interface{}, key interf
 		panic("implement me")
 	}
 	return resultChan
-}
-
-func (p *PocsDB) BeginTransaction(ctx *ConnectionContext) error {
-	txn, err := p.tManager.BeginTransaction(ctx.ID)
-	if err != nil {
-		return err
-	}
-	ctx.Txn = txn
-	return nil
-}
-
-func (p *PocsDB) CommitTransaction(ctx *ConnectionContext) error {
-	// Todo: Implement Persisting Commit changes
-	err := p.tManager.DeleteLog(ctx.ID)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (p *PocsDB) RollbackTransaction(ctx *ConnectionContext) error {
-	// TODO: Do I need to do anything about concurrent queries?
-	err := p.tManager.DeleteLog(ctx.ID)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (p *PocsDB) getDistrict(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
