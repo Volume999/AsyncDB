@@ -47,17 +47,23 @@ type TransactionLog struct {
 	HistoryLog   map[models.HistoryPK]LogEntry[models.History]
 }
 
-type TransactionManager struct {
+type TransactionManager interface {
+	BeginTransaction(ConnId uuid.UUID) (*Txn, error)
+	DeleteLog(ConnId uuid.UUID) error
+	GetLog(ConnId uuid.UUID) (*TransactionLog, error)
+}
+
+type TransactionManagerImpl struct {
 	tLogs map[uuid.UUID]*Txn
 }
 
-func NewTransactionManager() *TransactionManager {
-	return &TransactionManager{
+func NewTransactionManager() *TransactionManagerImpl {
+	return &TransactionManagerImpl{
 		tLogs: make(map[uuid.UUID]*Txn),
 	}
 }
 
-func (t *TransactionManager) BeginTransaction(ConnId uuid.UUID) (*Txn, error) {
+func (t *TransactionManagerImpl) BeginTransaction(ConnId uuid.UUID) (*Txn, error) {
 	if _, ok := t.tLogs[ConnId]; ok {
 		return nil, ErrConnInXact
 	}
@@ -80,7 +86,7 @@ func (t *TransactionManager) BeginTransaction(ConnId uuid.UUID) (*Txn, error) {
 	return txn, nil
 }
 
-func (t *TransactionManager) DeleteLog(ConnId uuid.UUID) error {
+func (t *TransactionManagerImpl) DeleteLog(ConnId uuid.UUID) error {
 	if _, ok := t.tLogs[ConnId]; !ok {
 		return ErrXactNotFound
 	}
@@ -156,7 +162,7 @@ func (t *TransactionLog) addAction(a Action) {
 	}
 }
 
-func (t *TransactionManager) GetLog(ConnId uuid.UUID) (*TransactionLog, error) {
+func (t *TransactionManagerImpl) GetLog(ConnId uuid.UUID) (*TransactionLog, error) {
 	// TODO: Do we need this function?
 	if _, ok := t.tLogs[ConnId]; !ok {
 		return &TransactionLog{}, ErrXactNotFound

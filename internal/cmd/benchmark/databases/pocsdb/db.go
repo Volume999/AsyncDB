@@ -23,11 +23,11 @@ type ConnectionContext struct {
 
 type PocsDB struct {
 	data     dataloaders.GeneratedData
-	tManager *TransactionManager
-	lManager *LockManager
+	tManager TransactionManager
+	lManager LockManager
 }
 
-func NewPocsDB(tManager *TransactionManager, lManager *LockManager) *PocsDB {
+func NewPocsDB(tManager *TransactionManagerImpl, lManager *LockManagerImpl) *PocsDB {
 	return &PocsDB{tManager: tManager, lManager: lManager}
 }
 

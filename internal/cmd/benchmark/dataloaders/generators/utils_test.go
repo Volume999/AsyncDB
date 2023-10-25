@@ -63,7 +63,6 @@ func TestRandomFloatInRange(t *testing.T) {
 			for i := 0; i < 100; i++ {
 				got := RandomFloatInRange(tt.args.f1, tt.args.f2, tt.args.prec)
 				gotPrecision := decimalPortion(got)
-				fmt.Println(got, gotPrecision)
 				if gotPrecision > tt.args.prec {
 					t.Errorf("Result %v has more precision than the precision argument %v", got, tt.args.prec)
 				}

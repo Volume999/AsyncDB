@@ -2,13 +2,17 @@ package pocsdb
 
 import "github.com/google/uuid"
 
-type LockManager struct {
+type LockManager interface {
+	ReleaseLocks(id uuid.UUID) error
 }
 
-func (m LockManager) ReleaseLocks(id uuid.UUID) error {
+type LockManagerImpl struct {
+}
+
+func (m LockManagerImpl) ReleaseLocks(id uuid.UUID) error {
 	return nil
 }
 
-func NewLockManager() *LockManager {
-	return &LockManager{}
+func NewLockManager() *LockManagerImpl {
+	return &LockManagerImpl{}
 }

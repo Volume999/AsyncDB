@@ -3,7 +3,7 @@ package pocsdb
 import (
 	"POCS_Projects/internal/cmd/benchmark/dataloaders"
 	"POCS_Projects/internal/models"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"testing"
 	"time"
 )
@@ -123,111 +123,217 @@ func mockData() dataloaders.GeneratedData {
 	}
 }
 
-func TestPocsDB_Put(t *testing.T) {
-	type fields struct {
-		data dataloaders.GeneratedData
-	}
-	type args struct {
-		ctx      *ConnectionContext
-		dataType interface{}
-		key      interface{}
-		value    interface{}
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		{
-			name: "put random item",
-			fields: fields{
-				data: mockData(),
-			},
-			args: args{
-				ctx:      nil,
-				dataType: models.Item{},
-				key:      models.ItemPK{Id: 2},
-				value: models.Item{
-					Id:      2,
-					Name:    "name",
-					Price:   1,
-					ImageId: 1,
-					Data:    "data",
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := PocsDB{
-				data: tt.fields.data,
-			}
-			resChan := p.Put(tt.args.ctx, tt.args.dataType, tt.args.key, tt.args.value)
-			assert.Eventually(t, func() bool {
-				select {
-				case res := <-resChan:
-					assert.Nil(t, res.Err)
-					return true
-				default:
-					return false
-				}
-			}, time.Second*5, time.Millisecond*100)
-
-		})
-	}
+type PocsDBSuite struct {
+	suite.Suite
+	db  *PocsDB
+	ctx *ConnectionContext
 }
 
-func TestPocsDB_Get(t *testing.T) {
-	type fields struct {
-		data dataloaders.GeneratedData
+func (suite *PocsDBSuite) SetupTest() {
+	tm := NewTransactionManager()
+	lm := NewLockManager()
+	suite.db = NewPocsDB(tm, lm)
+	err := suite.db.LoadData(mockData())
+	if err != nil {
+		suite.Failf("Failed to load data", "Error: %v", err)
 	}
-	type args struct {
-		ctx      *ConnectionContext
-		dataType interface{}
-		key      interface{}
-		want     interface{}
+	ctx, err := suite.db.Connect()
+	if err != nil {
+		suite.Failf("Failed to connect", "Error: %v", err)
 	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		{
-			name: "put random item",
-			fields: fields{
-				data: mockData(),
-			},
-			args: args{
-				ctx:      nil,
-				dataType: models.Item{},
-				key:      models.ItemPK{Id: 1},
-				want: models.Item{
-					Id:      1,
-					Name:    "name",
-					Price:   1,
-					ImageId: 1,
-					Data:    "data",
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := PocsDB{
-				data: tt.fields.data,
-			}
-			resChan := p.Get(tt.args.ctx, tt.args.dataType, tt.args.key)
-			assert.Eventually(t, func() bool {
-				select {
-				case res := <-resChan:
-					assert.Nil(t, res.Err)
-					assert.Equal(t, tt.args.want, res.Data)
-					return true
-				default:
-					return false
-				}
-			}, time.Second*5, time.Millisecond*100)
+	suite.ctx = ctx
+}
 
-		})
+func (suite *PocsDBSuite) TestPocsDB_Get_ReturnsItem_When_Exists() {
+	db := suite.db
+	resChan := db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 1})
+	suite.Eventually(func() bool {
+		select {
+		case res := <-resChan:
+			suite.Nil(res.Err)
+			suite.Equal(models.Item{
+				Id:      1,
+				Name:    "name",
+				Price:   1,
+				ImageId: 1,
+				Data:    "data",
+			}, res.Data)
+			return true
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*100)
+}
+
+func (suite *PocsDBSuite) TestPocsDB_Get_ReturnsError_When_NotExists() {
+	db := suite.db
+	resChan := db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 2})
+	suite.Eventually(func() bool {
+		select {
+		case res := <-resChan:
+			suite.NotNil(res.Err)
+			suite.Nil(res.Data)
+			return true
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*100)
+}
+
+func (suite *PocsDBSuite) TestPocsDB_Put_NoError_When_PutItem() {
+	db := suite.db
+	resChan := db.Put(suite.ctx, models.Item{}, models.ItemPK{Id: 2}, models.Item{})
+	suite.Eventually(func() bool {
+		select {
+		case res := <-resChan:
+			suite.Nil(res.Err)
+			return true
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*100)
+}
+
+func (suite *PocsDBSuite) TestPocsDB_Put_ReturnsNoError_When_GetItem() {
+	db := suite.db
+	resChan := db.Put(suite.ctx, models.Item{}, models.ItemPK{Id: 2}, models.Item{})
+	suite.Eventuallyf(func() bool {
+		select {
+		case <-resChan:
+			return true
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*100, "Put did not return")
+	resChan = db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 2})
+	suite.Eventually(func() bool {
+		select {
+		case res := <-resChan:
+			suite.Nil(res.Err)
+			return true
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*100)
+}
+
+func (suite *PocsDBSuite) TestPocsDB_Get_ReturnsItem_After_Put() {
+	db := suite.db
+	item := models.Item{
+		Id:      2,
+		Name:    "name",
+		Price:   1,
+		ImageId: 1,
+		Data:    "data",
 	}
+	resChan := db.Put(suite.ctx, models.Item{}, models.ItemPK{Id: 2}, item)
+	<-resChan
+	resChan = db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 2})
+	suite.Eventually(func() bool {
+		select {
+		case res := <-resChan:
+			suite.Nil(res.Err)
+			suite.Equal(item, res.Data)
+			return true
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*100)
+}
+
+func (suite *PocsDBSuite) TestPocsDB_Put_UpdatesItem_When_Exists() {
+	db := suite.db
+	item := models.Item{
+		Id:      1,
+		Name:    "name",
+		Price:   1,
+		ImageId: 1,
+		Data:    "data",
+	}
+	resChan := db.Put(suite.ctx, models.Item{}, models.ItemPK{Id: 1}, item)
+	suite.Eventuallyf(func() bool {
+		select {
+		case res := <-resChan:
+			return suite.Nil(res.Err)
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*100, "Put #1 did not succeed")
+	item.Name = "newName"
+	resChan = db.Put(suite.ctx, models.Item{}, models.ItemPK{Id: 1}, item)
+	suite.Eventuallyf(func() bool {
+		select {
+		case res := <-resChan:
+			return suite.Nil(res.Err)
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*100, "Put #2 did not succeed")
+	resChan = db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 1})
+	suite.Eventually(func() bool {
+		select {
+		case res := <-resChan:
+			suite.Nil(res.Err)
+			suite.Equal(item, res.Data)
+			return true
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*100)
+}
+
+func (suite *PocsDBSuite) TestPocsDB_Delete_NoError_When_ItemExists() {
+	db := suite.db
+	resChan := db.Delete(suite.ctx, models.Item{}, models.ItemPK{Id: 1})
+	suite.Eventually(func() bool {
+		select {
+		case res := <-resChan:
+			suite.Nil(res.Err)
+			return true
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*100)
+}
+
+func (suite *PocsDBSuite) TestPocsDB_Delete_ReturnsError_When_ItemDoesNotExist() {
+	db := suite.db
+	resChan := db.Delete(suite.ctx, models.Item{}, models.ItemPK{Id: 2})
+	suite.Eventually(func() bool {
+		select {
+		case res := <-resChan:
+			suite.NotNil(res.Err)
+			return true
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*100)
+}
+
+func (suite *PocsDBSuite) TestPocsDB_Get_ReturnsError_After_Delete() {
+	db := suite.db
+	resChan := db.Delete(suite.ctx, models.Item{}, models.ItemPK{Id: 1})
+	suite.Eventuallyf(func() bool {
+		select {
+		case <-resChan:
+			return true
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*100, "Delete did not return")
+	resChan = db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 1})
+	suite.Eventually(func() bool {
+		select {
+		case res := <-resChan:
+			suite.NotNil(res.Err)
+			suite.Nil(res.Data)
+			return true
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*100)
+}
+
+func TestPocsDBSuite(t *testing.T) {
+	suite.Run(t, new(PocsDBSuite))
 }
