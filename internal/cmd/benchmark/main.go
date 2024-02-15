@@ -1,15 +1,15 @@
 package main
 
 import (
-	"POCS_Projects/internal/cmd/benchmark/dataloaders"
-	commands2 "POCS_Projects/internal/config"
+	"AsyncDB/internal/cmd/benchmark/dataloaders"
+	"AsyncDB/internal/config"
 	"fmt"
 	"time"
 )
 
 func benchmarkDataGeneration() {
 	// Try generating data
-	constants := commands2.NewConstants()
+	constants := config.NewConstants()
 	times := 0
 	for i := 0; i < 10; i++ {
 		start := time.Now()

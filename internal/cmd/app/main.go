@@ -1,12 +1,12 @@
 package main
 
 import (
-	"POCS_Projects/internal/cmd/benchmark/databases/pocsdb"
-	"POCS_Projects/internal/cmd/benchmark/dataloaders"
-	commands2 "POCS_Projects/internal/config"
-	"POCS_Projects/internal/models"
-	"POCS_Projects/internal/services/order"
-	"POCS_Projects/internal/stores/async"
+	"AsyncDB/internal/cmd/benchmark/databases/pocsdb"
+	"AsyncDB/internal/cmd/benchmark/dataloaders"
+	"AsyncDB/internal/config"
+	"AsyncDB/internal/models"
+	"AsyncDB/internal/services/order"
+	"AsyncDB/internal/stores/async"
 	"fmt"
 	"github.com/kr/pretty"
 )
@@ -15,9 +15,9 @@ const (
 	configPath = "./internal/config/"
 )
 
-func main() {
+func debug() {
 	// Try generating data
-	constants := commands2.NewConstants()
+	constants := config.NewConstants()
 	data, _ := dataloaders.NewDataGeneratorImpl(1, constants, nil).GenerateData()
 	fmt.Println("Data generated successfully!")
 	fmt.Println("Warehouses: ", len(data.Warehouses))
@@ -94,4 +94,8 @@ func main() {
 		},
 	})
 	fmt.Printf("Result: %# v\n", pretty.Formatter(ord))
+}
+
+func main() {
+	debug()
 }

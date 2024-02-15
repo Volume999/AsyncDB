@@ -1,8 +1,10 @@
 package config
 
 import (
-	"POCS_Projects/internal/cmd/benchmark/dataloaders/generators"
+	"AsyncDB/internal/cmd/benchmark/dataloaders/generators"
 )
+
+// Constants TODO: What are these?
 
 type Constants struct {
 	CLast int
