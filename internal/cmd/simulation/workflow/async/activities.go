@@ -1,35 +1,73 @@
-package workflow
+package asyncwf
 
-import "fmt"
-
-func validateCheckout() {
-	fmt.Println("Validating checkout")
+func validateCheckout() chan<- struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		done <- struct{}{}
+	}()
+	return done
 }
 
-func validateAvailability() {
-	fmt.Println("Validating availability")
+func validateAvailability() chan<- struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		done <- struct{}{}
+	}()
+	return done
 }
 
-func verifyCustomer() {
-	fmt.Println("Verifying customer")
+func verifyCustomer() chan<- struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		done <- struct{}{}
+	}()
+	return done
 }
 
-func validatePayment() {
-	fmt.Println("Validating payment")
+func validatePayment() chan<- struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		done <- struct{}{}
+	}()
+	return done
 }
 
-func recordOffer() {
-	fmt.Println("Recording offer")
+func recordOffer() chan<- struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		done <- struct{}{}
+	}()
+	return done
 }
 
-func commitTax() {
-	fmt.Println("Committing tax")
+func commitTax() chan<- struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		done <- struct{}{}
+	}()
+	return done
 }
 
-func decrementInventory() {
-	fmt.Println("Decrementing inventory")
+func decrementInventory() chan<- struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		done <- struct{}{}
+	}()
+	return done
 }
 
-func completeOrder() {
-	fmt.Println("Completing order")
+func completeOrder() chan<- struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		done <- struct{}{}
+	}()
+	return done
 }

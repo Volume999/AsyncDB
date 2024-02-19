@@ -1,35 +1,41 @@
-package workflow
+package sequentialwf
 
-import "fmt"
+import (
+	"AsyncDB/pkg/util"
+	"math/rand"
+)
 
-func validateCheckout() {
+func ValidateCheckout() {
 	// This function was not implemented in the original BroadLeaf use-case
 }
 
-func validateAvailability() {
-	fmt.Println("Validating availability")
+func ValidateAvailability() {
+	orderItemsCnt := rand.Intn(20) + 1 // Item count range: [1, 20]
+	for range orderItemsCnt {
+		util.SimulateSyncIoLoad() // Load to get the item availability
+		util.SimulateCpuLoad(100) // Merge SKU Items
+	}
+	skuItemsCnt := rand.Intn(orderItemsCnt) + 1 // SKU count range: [1, orderItemsCnt]
+	for range skuItemsCnt {
+		util.SimulateSyncIoLoad() // Load to get the SKU availability
+		util.SimulateCpuLoad(100) // Some operations on SKU Items
+	}
 }
 
-func verifyCustomer() {
-	fmt.Println("Verifying customer")
+func VerifyCustomer() {
 }
 
-func validatePayment() {
-	fmt.Println("Validating payment")
+func ValidatePayment() {
 }
 
-func recordOffer() {
-	fmt.Println("Recording offer")
+func RecordOffer() {
 }
 
-func commitTax() {
-	fmt.Println("Committing tax")
+func CommitTax() {
 }
 
-func decrementInventory() {
-	fmt.Println("Decrementing inventory")
+func DecrementInventory() {
 }
 
-func completeOrder() {
-	fmt.Println("Completing order")
+func CompleteOrder() {
 }

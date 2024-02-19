@@ -3,17 +3,16 @@ package util
 import "time"
 
 const (
-	CpuLoadCycles      int = 10000000
 	IoTimeLowerBoundMs int = 2
 	IoTimeUpperBoundMs int = 20
 )
 
-func simulateCpuLoad() {
-	for range CpuLoadCycles {
+func SimulateCpuLoad(cpuLoadCycles int) {
+	for range cpuLoadCycles {
 	}
 }
 
-func simulateAsyncIoLoad() chan struct{} {
+func SimulateAsyncIoLoad() chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		sleepTime := time.Duration(IoTimeLowerBoundMs + (IoTimeUpperBoundMs-IoTimeLowerBoundMs)/2)
@@ -23,7 +22,7 @@ func simulateAsyncIoLoad() chan struct{} {
 	return done
 }
 
-func simulateSyncIoLoad() {
+func SimulateSyncIoLoad() {
 	sleepTime := time.Duration(IoTimeLowerBoundMs + (IoTimeUpperBoundMs-IoTimeLowerBoundMs)/2)
 	time.Sleep(sleepTime * time.Millisecond)
 }

@@ -1,11 +1,55 @@
-package workflow
+package asyncwf
+
+import (
+	sequentialwf "AsyncDB/internal/cmd/simulation/workflow/sequential"
+	"sync"
+	"time"
+)
 
 type AsyncWorkflow struct{}
 
 func (w *AsyncWorkflow) executeSequentialActivities() {
+	validationPhase := []func(){
+		sequentialwf.ValidateCheckout,
+		sequentialwf.ValidateAvailability,
+		sequentialwf.VerifyCustomer,
+		sequentialwf.ValidatePayment,
+	}
 
+	wg := &sync.WaitGroup{}
+	wg.Add(len(validationPhase))
+	for _, activity := range validationPhase {
+		go func(activity func()) {
+			defer wg.Done()
+			activity()
+		}(activity)
+	}
+	wg.Wait()
+
+	operationPhase := []func(){
+		sequentialwf.RecordOffer,
+		sequentialwf.CommitTax,
+		sequentialwf.DecrementInventory,
+	}
+	wg.Add(len(operationPhase))
+	for _, activity := range operationPhase {
+		go func(activity func()) {
+			defer wg.Done()
+			activity()
+		}(activity)
+	}
+	wg.Wait()
+	completeOrder()
 }
 
-func (w *AsyncWorkflow) Execute(activityTypes bool) {
+func (w *AsyncWorkflow) executeAsyncActivities() {
+	time.Sleep(1 * time.Second)
+}
 
+func (w *AsyncWorkflow) Execute(isAsyncActivities bool) {
+	if isAsyncActivities {
+		w.executeAsyncActivities()
+	} else {
+		w.executeSequentialActivities()
+	}
 }
