@@ -8,21 +8,30 @@ import (
 
 func BenchmarkSequentialWorkflow(b *testing.B) {
 	w := &sequential.SequentialWorkflow{}
-	for i := 0; i < b.N; i++ {
-		w.Execute()
-	}
+	b.SetParallelism(100000)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			w.Execute()
+		}
+	})
 }
 
 func BenchmarkAsyncWorkflowSequentialActivities(b *testing.B) {
 	w := &async.AsyncWorkflow{}
-	for i := 0; i < b.N; i++ {
-		w.Execute(false)
-	}
+	b.SetParallelism(100000)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			w.Execute(false)
+		}
+	})
 }
 
 func BenchmarkAsyncWorkflowAsyncActivities(b *testing.B) {
 	w := &async.AsyncWorkflow{}
-	for i := 0; i < b.N; i++ {
-		w.Execute(true)
-	}
+	b.SetParallelism(100000)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			w.Execute(true)
+		}
+	})
 }
