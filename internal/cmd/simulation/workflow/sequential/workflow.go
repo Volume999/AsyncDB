@@ -3,7 +3,7 @@ package sequentialwf
 type SequentialWorkflow struct {
 }
 
-func (w *SequentialWorkflow) Execute() {
+func (w *SequentialWorkflow) ExecuteSequential() {
 	ValidateCheckout()
 	ValidateAvailability()
 	VerifyCustomer()
@@ -12,4 +12,8 @@ func (w *SequentialWorkflow) Execute() {
 	CommitTax()
 	DecrementInventory()
 	CompleteOrder()
+}
+
+func (w *SequentialWorkflow) ExecuteAsync() {
+	panic("implement me")
 }

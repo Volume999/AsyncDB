@@ -21,3 +21,7 @@
 go.work
 
 .idea/**
+
+# Ignore benchmark results
+*.tsv
+*.csv

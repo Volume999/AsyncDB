@@ -75,10 +75,10 @@ func (w *AsyncWorkflow) executeAsyncActivities() {
 	completeOrder()
 }
 
-func (w *AsyncWorkflow) Execute(isAsyncActivities bool) {
-	if isAsyncActivities {
-		w.executeAsyncActivities()
-	} else {
-		w.executeSequentialActivities()
-	}
+func (w *AsyncWorkflow) ExecuteAsync() {
+	w.executeAsyncActivities()
+}
+
+func (w *AsyncWorkflow) ExecuteSequential() {
+	w.executeSequentialActivities()
 }
