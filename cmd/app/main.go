@@ -11,10 +11,6 @@ import (
 	"github.com/kr/pretty"
 )
 
-const (
-	configPath = "./internal/config/"
-)
-
 func debug() {
 	// Try generating data
 	constants := config.NewConstants()
@@ -32,7 +28,7 @@ func debug() {
 
 	tm := asyncdb.NewTransactionManager()
 	lm := asyncdb.NewLockManager()
-	db := asyncdb.NewPocsDB(tm, lm)
+	db := asyncdb.NewAsyncDB(tm, lm)
 	_ = db.LoadData(data)
 	ctx, _ := db.Connect()
 

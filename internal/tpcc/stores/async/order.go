@@ -9,10 +9,10 @@ import (
 
 type OrderStore struct {
 	l  *log.Logger
-	db *asyncdb.PocsDB
+	db *asyncdb.AsyncDB
 }
 
-func NewOrderStore(l *log.Logger, db *asyncdb.PocsDB) Store[models.Order, models.OrderPK] {
+func NewOrderStore(l *log.Logger, db *asyncdb.AsyncDB) Store[models.Order, models.OrderPK] {
 	return &OrderStore{db: db, l: l}
 }
 

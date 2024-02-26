@@ -12,11 +12,11 @@ import (
 
 type MonoService struct {
 	l      *log.Logger
-	db     *asyncdb.PocsDB
+	db     *asyncdb.AsyncDB
 	stores async.Stores
 }
 
-func NewMonoService(l *log.Logger, db *asyncdb.PocsDB, stores async.Stores) *MonoService {
+func NewMonoService(l *log.Logger, db *asyncdb.AsyncDB, stores async.Stores) *MonoService {
 	return &MonoService{l: l, db: db, stores: stores}
 }
 

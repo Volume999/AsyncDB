@@ -9,10 +9,10 @@ import (
 
 type ItemStore struct {
 	l  *log.Logger
-	db *asyncdb.PocsDB
+	db *asyncdb.AsyncDB
 }
 
-func NewItemStore(l *log.Logger, db *asyncdb.PocsDB) Store[models.Item, models.ItemPK] {
+func NewItemStore(l *log.Logger, db *asyncdb.AsyncDB) Store[models.Item, models.ItemPK] {
 	return &ItemStore{db: db, l: l}
 }
 

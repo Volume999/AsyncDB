@@ -9,7 +9,7 @@ import (
 
 type CustomerStore struct {
 	l  *log.Logger
-	db *asyncdb.PocsDB
+	db *asyncdb.AsyncDB
 }
 
 func (c *CustomerStore) Put(ctx *asyncdb.ConnectionContext, value models.Customer) <-chan databases.RequestResult {
@@ -24,6 +24,6 @@ func (c *CustomerStore) Delete(ctx *asyncdb.ConnectionContext, key models.Custom
 	return c.db.Delete(ctx, models.Customer{}, key)
 }
 
-func NewCustomerStore(l *log.Logger, db *asyncdb.PocsDB) Store[models.Customer, models.CustomerPK] {
+func NewCustomerStore(l *log.Logger, db *asyncdb.AsyncDB) Store[models.Customer, models.CustomerPK] {
 	return &CustomerStore{db: db, l: l}
 }

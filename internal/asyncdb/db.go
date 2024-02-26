@@ -21,27 +21,27 @@ type ConnectionContext struct {
 	Mode int // Active, Committing, Aborting
 }
 
-type PocsDB struct {
+type AsyncDB struct {
 	data     dataloaders.GeneratedData
 	tManager TransactionManager
 	lManager LockManager
 }
 
-func NewPocsDB(tManager *TransactionManagerImpl, lManager *LockManagerImpl) *PocsDB {
-	return &PocsDB{tManager: tManager, lManager: lManager}
+func NewAsyncDB(tManager *TransactionManagerImpl, lManager *LockManagerImpl) *AsyncDB {
+	return &AsyncDB{tManager: tManager, lManager: lManager}
 }
 
-func (p *PocsDB) LoadData(data dataloaders.GeneratedData) error {
+func (p *AsyncDB) LoadData(data dataloaders.GeneratedData) error {
 	p.data = data
 	return nil
 }
 
-func (p *PocsDB) Connect() (*ConnectionContext, error) {
+func (p *AsyncDB) Connect() (*ConnectionContext, error) {
 	guid := uuid.New()
 	return &ConnectionContext{ID: guid}, nil
 }
 
-func (p *PocsDB) Disconnect(context *ConnectionContext) error {
+func (p *AsyncDB) Disconnect(context *ConnectionContext) error {
 	var rollbackErr, lockReleaseErr error
 	if context.Txn != nil {
 		rollbackErr = p.RollbackTransaction(context)
@@ -50,7 +50,7 @@ func (p *PocsDB) Disconnect(context *ConnectionContext) error {
 	return errors.Join(rollbackErr, lockReleaseErr)
 }
 
-func (p *PocsDB) Put(ctx *ConnectionContext, dataType interface{}, key interface{}, value interface{}) <-chan databases.RequestResult {
+func (p *AsyncDB) Put(ctx *ConnectionContext, dataType interface{}, key interface{}, value interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
 		implTransaction := ctx.Txn == nil
@@ -86,7 +86,7 @@ func (p *PocsDB) Put(ctx *ConnectionContext, dataType interface{}, key interface
 	return resultChan
 }
 
-func (p *PocsDB) Get(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
+func (p *AsyncDB) Get(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
 		implTransaction := ctx.Txn == nil
@@ -114,7 +114,7 @@ func (p *PocsDB) Get(ctx *ConnectionContext, dataType interface{}, key interface
 	return resultChan
 }
 
-func (p *PocsDB) Delete(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
+func (p *AsyncDB) Delete(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
 		implTransaction := ctx.Txn == nil
@@ -150,7 +150,7 @@ func (p *PocsDB) Delete(ctx *ConnectionContext, dataType interface{}, key interf
 	return resultChan
 }
 
-func (p *PocsDB) BeginTransaction(ctx *ConnectionContext) error {
+func (p *AsyncDB) BeginTransaction(ctx *ConnectionContext) error {
 	txn, err := p.tManager.BeginTransaction(ctx.ID)
 	if err != nil {
 		return err
@@ -160,7 +160,7 @@ func (p *PocsDB) BeginTransaction(ctx *ConnectionContext) error {
 	return nil
 }
 
-func (p *PocsDB) CommitTransaction(ctx *ConnectionContext) error {
+func (p *AsyncDB) CommitTransaction(ctx *ConnectionContext) error {
 	// Todo: Wait for concurrent queries to finish?
 	ctx.Mode = Committing
 	txn := ctx.Txn
@@ -173,7 +173,7 @@ func (p *PocsDB) CommitTransaction(ctx *ConnectionContext) error {
 	return err
 }
 
-func (p *PocsDB) RollbackTransaction(ctx *ConnectionContext) error {
+func (p *AsyncDB) RollbackTransaction(ctx *ConnectionContext) error {
 	ctx.Mode = Aborting
 	// Todo: Cancel concurrent queries?
 	err := p.tManager.DeleteLog(ctx.ID)
@@ -181,7 +181,7 @@ func (p *PocsDB) RollbackTransaction(ctx *ConnectionContext) error {
 	return err
 }
 
-func (p *PocsDB) applyLogs(log *TransactionLog) {
+func (p *AsyncDB) applyLogs(log *TransactionLog) {
 	applyLogToData[models.WarehousePK, models.Warehouse](p.data.Warehouses, log.WarehouseLog)
 	applyLogToData[models.StockPK, models.Stock](p.data.Stocks, log.StockLog)
 	applyLogToData[models.OrderPK, models.Order](p.data.Orders, log.OrderLog)
@@ -207,7 +207,7 @@ func applyLogToData[K comparable, V any](
 	}
 }
 
-func (p *PocsDB) putValue(ctx *ConnectionContext, dataType interface{}, key interface{}, value interface{}) <-chan databases.RequestResult {
+func (p *AsyncDB) putValue(ctx *ConnectionContext, dataType interface{}, key interface{}, value interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	switch dataType.(type) {
 	case models.Warehouse:
@@ -234,7 +234,7 @@ func (p *PocsDB) putValue(ctx *ConnectionContext, dataType interface{}, key inte
 	return resultChan
 }
 
-func (p *PocsDB) getValue(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
+func (p *AsyncDB) getValue(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	switch dataType.(type) {
 	case models.Warehouse:
@@ -261,7 +261,7 @@ func (p *PocsDB) getValue(ctx *ConnectionContext, dataType interface{}, key inte
 	return resultChan
 }
 
-func (p *PocsDB) deleteValue(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
+func (p *AsyncDB) deleteValue(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	switch dataType.(type) {
 	case models.Warehouse:
@@ -288,70 +288,70 @@ func (p *PocsDB) deleteValue(ctx *ConnectionContext, dataType interface{}, key i
 	return resultChan
 }
 
-func (p *PocsDB) getDistrict(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+func (p *AsyncDB) getDistrict(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
 	resultChan <- databases.RequestResult{
 		Data: p.data.Districts[key.(models.DistrictPK)],
 		Err:  nil,
 	}
 }
 
-func (p *PocsDB) getHistory(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+func (p *AsyncDB) getHistory(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
 	resultChan <- databases.RequestResult{
 		Data: p.data.History[key.(models.HistoryPK)],
 		Err:  nil,
 	}
 }
 
-func (p *PocsDB) getNewOrder(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+func (p *AsyncDB) getNewOrder(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
 	resultChan <- databases.RequestResult{
 		Data: p.data.NewOrders[key.(models.NewOrderPK)],
 		Err:  nil,
 	}
 }
 
-func (p *PocsDB) getOrderLine(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+func (p *AsyncDB) getOrderLine(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
 	resultChan <- databases.RequestResult{
 		Data: p.data.OrderLines[key.(models.OrderLinePK)],
 		Err:  nil,
 	}
 }
 
-func (p *PocsDB) getOrder(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+func (p *AsyncDB) getOrder(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
 	resultChan <- databases.RequestResult{
 		Data: p.data.Orders[key.(models.OrderPK)],
 		Err:  nil,
 	}
 }
 
-func (p *PocsDB) getStock(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+func (p *AsyncDB) getStock(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
 	resultChan <- databases.RequestResult{
 		Data: p.data.Stocks[key.(models.StockPK)],
 		Err:  nil,
 	}
 }
 
-func (p *PocsDB) getItem(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+func (p *AsyncDB) getItem(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
 	resultChan <- databases.RequestResult{
 		Data: p.data.Items[key.(models.ItemPK)],
 		Err:  nil,
 	}
 }
 
-func (p *PocsDB) getCustomer(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+func (p *AsyncDB) getCustomer(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
 	resultChan <- databases.RequestResult{
 		Data: p.data.Customers[key.(models.CustomerPK)],
 		Err:  nil,
 	}
 }
 
-func (p *PocsDB) getWarehouse(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
+func (p *AsyncDB) getWarehouse(_ *ConnectionContext, key interface{}, resultChan chan<- databases.RequestResult) {
 	resultChan <- databases.RequestResult{
 		Data: p.data.Warehouses[key.(models.WarehousePK)],
 		Err:  nil,
 	}
 }
 
-func (p *PocsDB) putDistrict(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) putDistrict(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
 	p.data.Districts[key.(models.DistrictPK)] = value.(models.District)
 	errorChan <- databases.RequestResult{
 		Data: nil,
@@ -359,7 +359,7 @@ func (p *PocsDB) putDistrict(_ *ConnectionContext, key interface{}, value interf
 	}
 }
 
-func (p *PocsDB) putHistory(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) putHistory(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
 	p.data.History[key.(models.HistoryPK)] = value.(models.History)
 	errorChan <- databases.RequestResult{
 		Data: nil,
@@ -367,7 +367,7 @@ func (p *PocsDB) putHistory(_ *ConnectionContext, key interface{}, value interfa
 	}
 }
 
-func (p *PocsDB) putNewOrder(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) putNewOrder(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
 	p.data.NewOrders[key.(models.NewOrderPK)] = value.(models.NewOrder)
 	errorChan <- databases.RequestResult{
 		Data: nil,
@@ -375,7 +375,7 @@ func (p *PocsDB) putNewOrder(_ *ConnectionContext, key interface{}, value interf
 	}
 }
 
-func (p *PocsDB) putOrderLine(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) putOrderLine(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
 	p.data.OrderLines[key.(models.OrderLinePK)] = value.(models.OrderLine)
 	errorChan <- databases.RequestResult{
 		Data: nil,
@@ -383,7 +383,7 @@ func (p *PocsDB) putOrderLine(_ *ConnectionContext, key interface{}, value inter
 	}
 }
 
-func (p *PocsDB) putOrder(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) putOrder(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
 	p.data.Orders[key.(models.OrderPK)] = value.(models.Order)
 	errorChan <- databases.RequestResult{
 		Data: nil,
@@ -391,7 +391,7 @@ func (p *PocsDB) putOrder(_ *ConnectionContext, key interface{}, value interface
 	}
 }
 
-func (p *PocsDB) putStock(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) putStock(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
 	p.data.Stocks[key.(models.StockPK)] = value.(models.Stock)
 	errorChan <- databases.RequestResult{
 		Data: nil,
@@ -399,7 +399,7 @@ func (p *PocsDB) putStock(_ *ConnectionContext, key interface{}, value interface
 	}
 }
 
-func (p *PocsDB) putItem(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) putItem(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
 	p.data.Items[key.(models.ItemPK)] = value.(models.Item)
 	errorChan <- databases.RequestResult{
 		Data: nil,
@@ -407,7 +407,7 @@ func (p *PocsDB) putItem(_ *ConnectionContext, key interface{}, value interface{
 	}
 }
 
-func (p *PocsDB) putCustomer(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) putCustomer(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
 	p.data.Customers[key.(models.CustomerPK)] = value.(models.Customer)
 	errorChan <- databases.RequestResult{
 		Data: nil,
@@ -415,7 +415,7 @@ func (p *PocsDB) putCustomer(_ *ConnectionContext, key interface{}, value interf
 	}
 }
 
-func (p *PocsDB) putWarehouse(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) putWarehouse(_ *ConnectionContext, key interface{}, value interface{}, errorChan chan<- databases.RequestResult) {
 	p.data.Warehouses[key.(models.WarehousePK)] = value.(models.Warehouse)
 	errorChan <- databases.RequestResult{
 		Data: nil,
@@ -423,7 +423,7 @@ func (p *PocsDB) putWarehouse(_ *ConnectionContext, key interface{}, value inter
 	}
 }
 
-func (p *PocsDB) deleteWarehouse(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) deleteWarehouse(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
 	if _, ok := p.data.Warehouses[key.(models.WarehousePK)]; ok {
 		delete(p.data.Warehouses, key.(models.WarehousePK))
 		errorChan <- databases.RequestResult{
@@ -438,7 +438,7 @@ func (p *PocsDB) deleteWarehouse(_ *ConnectionContext, key interface{}, errorCha
 	}
 }
 
-func (p *PocsDB) deleteCustomer(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) deleteCustomer(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
 	if _, ok := p.data.Customers[key.(models.CustomerPK)]; ok {
 		delete(p.data.Customers, key.(models.CustomerPK))
 		errorChan <- databases.RequestResult{
@@ -453,7 +453,7 @@ func (p *PocsDB) deleteCustomer(_ *ConnectionContext, key interface{}, errorChan
 	}
 }
 
-func (p *PocsDB) deleteItem(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) deleteItem(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
 	if _, ok := p.data.Items[key.(models.ItemPK)]; ok {
 		delete(p.data.Items, key.(models.ItemPK))
 		errorChan <- databases.RequestResult{
@@ -468,7 +468,7 @@ func (p *PocsDB) deleteItem(_ *ConnectionContext, key interface{}, errorChan cha
 	}
 }
 
-func (p *PocsDB) deleteStock(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) deleteStock(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
 	if _, ok := p.data.Stocks[key.(models.StockPK)]; ok {
 		delete(p.data.Stocks, key.(models.StockPK))
 		errorChan <- databases.RequestResult{
@@ -483,7 +483,7 @@ func (p *PocsDB) deleteStock(_ *ConnectionContext, key interface{}, errorChan ch
 	}
 }
 
-func (p *PocsDB) deleteOrder(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) deleteOrder(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
 	if _, ok := p.data.Orders[key.(models.OrderPK)]; ok {
 		delete(p.data.Orders, key.(models.OrderPK))
 		errorChan <- databases.RequestResult{
@@ -498,7 +498,7 @@ func (p *PocsDB) deleteOrder(_ *ConnectionContext, key interface{}, errorChan ch
 	}
 }
 
-func (p *PocsDB) deleteOrderLine(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) deleteOrderLine(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
 	if _, ok := p.data.OrderLines[key.(models.OrderLinePK)]; ok {
 		delete(p.data.OrderLines, key.(models.OrderLinePK))
 		errorChan <- databases.RequestResult{
@@ -513,7 +513,7 @@ func (p *PocsDB) deleteOrderLine(_ *ConnectionContext, key interface{}, errorCha
 	}
 }
 
-func (p *PocsDB) deleteNewOrder(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) deleteNewOrder(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
 	if _, ok := p.data.NewOrders[key.(models.NewOrderPK)]; ok {
 		delete(p.data.NewOrders, key.(models.NewOrderPK))
 		errorChan <- databases.RequestResult{
@@ -528,7 +528,7 @@ func (p *PocsDB) deleteNewOrder(_ *ConnectionContext, key interface{}, errorChan
 	}
 }
 
-func (p *PocsDB) deleteHistory(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) deleteHistory(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
 	if _, ok := p.data.History[key.(models.HistoryPK)]; ok {
 		delete(p.data.History, key.(models.HistoryPK))
 		errorChan <- databases.RequestResult{
@@ -543,7 +543,7 @@ func (p *PocsDB) deleteHistory(_ *ConnectionContext, key interface{}, errorChan 
 	}
 }
 
-func (p *PocsDB) deleteDistrict(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
+func (p *AsyncDB) deleteDistrict(_ *ConnectionContext, key interface{}, errorChan chan<- databases.RequestResult) {
 	if _, ok := p.data.Districts[key.(models.DistrictPK)]; ok {
 		delete(p.data.Districts, key.(models.DistrictPK))
 		errorChan <- databases.RequestResult{

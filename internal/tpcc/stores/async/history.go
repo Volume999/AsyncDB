@@ -9,10 +9,10 @@ import (
 
 type HistoryStore struct {
 	l  *log.Logger
-	db *asyncdb.PocsDB
+	db *asyncdb.AsyncDB
 }
 
-func NewHistoryStore(l *log.Logger, db *asyncdb.PocsDB) Store[models.History, models.HistoryPK] {
+func NewHistoryStore(l *log.Logger, db *asyncdb.AsyncDB) Store[models.History, models.HistoryPK] {
 	return &HistoryStore{db: db, l: l}
 }
 

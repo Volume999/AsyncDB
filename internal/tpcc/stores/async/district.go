@@ -9,10 +9,10 @@ import (
 
 type DisctrictStore struct {
 	l  *log.Logger
-	db *asyncdb.PocsDB
+	db *asyncdb.AsyncDB
 }
 
-func NewDiscrictStore(l *log.Logger, db *asyncdb.PocsDB) Store[models.District, models.DistrictPK] {
+func NewDiscrictStore(l *log.Logger, db *asyncdb.AsyncDB) Store[models.District, models.DistrictPK] {
 	return &DisctrictStore{db: db, l: l}
 }
 

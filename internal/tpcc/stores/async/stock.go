@@ -9,10 +9,10 @@ import (
 
 type StockStore struct {
 	l  *log.Logger
-	db *asyncdb.PocsDB
+	db *asyncdb.AsyncDB
 }
 
-func NewStockStore(l *log.Logger, db *asyncdb.PocsDB) Store[models.Stock, models.StockPK] {
+func NewStockStore(l *log.Logger, db *asyncdb.AsyncDB) Store[models.Stock, models.StockPK] {
 	return &StockStore{db: db, l: l}
 }
 

@@ -9,10 +9,10 @@ import (
 
 type NOrderStore struct {
 	l  *log.Logger
-	db *asyncdb.PocsDB
+	db *asyncdb.AsyncDB
 }
 
-func NewNOrderStore(l *log.Logger, db *asyncdb.PocsDB) Store[models.NewOrder, models.NewOrderPK] {
+func NewNOrderStore(l *log.Logger, db *asyncdb.AsyncDB) Store[models.NewOrder, models.NewOrderPK] {
 	return &NOrderStore{db: db, l: l}
 }
 

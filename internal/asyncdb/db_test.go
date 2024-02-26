@@ -123,16 +123,16 @@ func mockData() dataloaders.GeneratedData {
 	}
 }
 
-type PocsDBSuite struct {
+type AsyncDBSuite struct {
 	suite.Suite
-	db  *PocsDB
+	db  *AsyncDB
 	ctx *ConnectionContext
 }
 
-func (suite *PocsDBSuite) SetupTest() {
+func (suite *AsyncDBSuite) SetupTest() {
 	tm := NewTransactionManager()
 	lm := NewLockManager()
-	suite.db = NewPocsDB(tm, lm)
+	suite.db = NewAsyncDB(tm, lm)
 	err := suite.db.LoadData(mockData())
 	if err != nil {
 		suite.Failf("Failed to load data", "Error: %v", err)
@@ -144,7 +144,7 @@ func (suite *PocsDBSuite) SetupTest() {
 	suite.ctx = ctx
 }
 
-func (suite *PocsDBSuite) TestPocsDB_Get_ReturnsItem_When_Exists() {
+func (suite *AsyncDBSuite) TestPocsDB_Get_ReturnsItem_When_Exists() {
 	db := suite.db
 	resChan := db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 1})
 	suite.Eventually(func() bool {
@@ -165,7 +165,7 @@ func (suite *PocsDBSuite) TestPocsDB_Get_ReturnsItem_When_Exists() {
 	}, time.Second*5, time.Millisecond*100)
 }
 
-func (suite *PocsDBSuite) TestPocsDB_Get_ReturnsError_When_NotExists() {
+func (suite *AsyncDBSuite) TestPocsDB_Get_ReturnsError_When_NotExists() {
 	db := suite.db
 	resChan := db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 2})
 	suite.Eventually(func() bool {
@@ -180,7 +180,7 @@ func (suite *PocsDBSuite) TestPocsDB_Get_ReturnsError_When_NotExists() {
 	}, time.Second*5, time.Millisecond*100)
 }
 
-func (suite *PocsDBSuite) TestPocsDB_Put_NoError_When_PutItem() {
+func (suite *AsyncDBSuite) TestPocsDB_Put_NoError_When_PutItem() {
 	db := suite.db
 	resChan := db.Put(suite.ctx, models.Item{}, models.ItemPK{Id: 2}, models.Item{})
 	suite.Eventually(func() bool {
@@ -194,7 +194,7 @@ func (suite *PocsDBSuite) TestPocsDB_Put_NoError_When_PutItem() {
 	}, time.Second*5, time.Millisecond*100)
 }
 
-func (suite *PocsDBSuite) TestPocsDB_Put_ReturnsNoError_When_GetItem() {
+func (suite *AsyncDBSuite) TestPocsDB_Put_ReturnsNoError_When_GetItem() {
 	db := suite.db
 	resChan := db.Put(suite.ctx, models.Item{}, models.ItemPK{Id: 2}, models.Item{})
 	suite.Eventuallyf(func() bool {
@@ -217,7 +217,7 @@ func (suite *PocsDBSuite) TestPocsDB_Put_ReturnsNoError_When_GetItem() {
 	}, time.Second*5, time.Millisecond*100)
 }
 
-func (suite *PocsDBSuite) TestPocsDB_Get_ReturnsItem_After_Put() {
+func (suite *AsyncDBSuite) TestPocsDB_Get_ReturnsItem_After_Put() {
 	db := suite.db
 	item := models.Item{
 		Id:      2,
@@ -241,7 +241,7 @@ func (suite *PocsDBSuite) TestPocsDB_Get_ReturnsItem_After_Put() {
 	}, time.Second*5, time.Millisecond*100)
 }
 
-func (suite *PocsDBSuite) TestPocsDB_Put_UpdatesItem_When_Exists() {
+func (suite *AsyncDBSuite) TestPocsDB_Put_UpdatesItem_When_Exists() {
 	db := suite.db
 	item := models.Item{
 		Id:      1,
@@ -282,7 +282,7 @@ func (suite *PocsDBSuite) TestPocsDB_Put_UpdatesItem_When_Exists() {
 	}, time.Second*5, time.Millisecond*100)
 }
 
-func (suite *PocsDBSuite) TestPocsDB_Delete_NoError_When_ItemExists() {
+func (suite *AsyncDBSuite) TestPocsDB_Delete_NoError_When_ItemExists() {
 	db := suite.db
 	resChan := db.Delete(suite.ctx, models.Item{}, models.ItemPK{Id: 1})
 	suite.Eventually(func() bool {
@@ -296,7 +296,7 @@ func (suite *PocsDBSuite) TestPocsDB_Delete_NoError_When_ItemExists() {
 	}, time.Second*5, time.Millisecond*100)
 }
 
-func (suite *PocsDBSuite) TestPocsDB_Delete_ReturnsError_When_ItemDoesNotExist() {
+func (suite *AsyncDBSuite) TestPocsDB_Delete_ReturnsError_When_ItemDoesNotExist() {
 	db := suite.db
 	resChan := db.Delete(suite.ctx, models.Item{}, models.ItemPK{Id: 2})
 	suite.Eventually(func() bool {
@@ -310,7 +310,7 @@ func (suite *PocsDBSuite) TestPocsDB_Delete_ReturnsError_When_ItemDoesNotExist()
 	}, time.Second*5, time.Millisecond*100)
 }
 
-func (suite *PocsDBSuite) TestPocsDB_Get_ReturnsError_After_Delete() {
+func (suite *AsyncDBSuite) TestPocsDB_Get_ReturnsError_After_Delete() {
 	db := suite.db
 	resChan := db.Delete(suite.ctx, models.Item{}, models.ItemPK{Id: 1})
 	suite.Eventuallyf(func() bool {
@@ -335,5 +335,5 @@ func (suite *PocsDBSuite) TestPocsDB_Get_ReturnsError_After_Delete() {
 }
 
 func TestPocsDBSuite(t *testing.T) {
-	suite.Run(t, new(PocsDBSuite))
+	suite.Run(t, new(AsyncDBSuite))
 }
