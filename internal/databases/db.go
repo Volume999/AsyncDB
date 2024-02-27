@@ -16,6 +16,8 @@ type RequestResult struct {
 type AsyncDatabase interface {
 	Connect() (*ConnectionContext, error)
 	Disconnect(*ConnectionContext) error
+	// TODO: Figure out DDL API
+	CreateTable(ctx *ConnectionContext, dataType interface{}) error
 	Put(ctx *ConnectionContext, dataType interface{}, key interface{}, value interface{}) (resultChan <-chan RequestResult)
 	Get(ctx *ConnectionContext, dataType interface{}, key interface{}) (resultChan <-chan RequestResult)
 	Delete(ctx *ConnectionContext, dataType interface{}, key interface{}) (resultChan <-chan RequestResult)

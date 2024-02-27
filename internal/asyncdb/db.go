@@ -21,8 +21,13 @@ type ConnectionContext struct {
 	Mode int // Active, Committing, Aborting
 }
 
+//type ValueType interface{}
+//type KeyType interface{}
+
+var ErrTableExists = errors.New("table already exists")
+
 type AsyncDB struct {
-	data     dataloaders.GeneratedData
+	data     map[uint64]Table
 	tManager TransactionManager
 	lManager LockManager
 }
@@ -31,8 +36,10 @@ func NewAsyncDB(tManager *TransactionManagerImpl, lManager *LockManagerImpl) *As
 	return &AsyncDB{tManager: tManager, lManager: lManager}
 }
 
-func (p *AsyncDB) LoadData(data dataloaders.GeneratedData) error {
-	p.data = data
+func (p *AsyncDB) LoadData(ctx *ConnectionContext, data dataloaders.GeneratedData) error {
+	// Warehouses
+	table := NewGenericTable[models.WarehousePK, models.Warehouse]("warehouses")
+	_ = p.CreateTable(ctx, table)
 	return nil
 }
 
@@ -50,7 +57,16 @@ func (p *AsyncDB) Disconnect(context *ConnectionContext) error {
 	return errors.Join(rollbackErr, lockReleaseErr)
 }
 
-func (p *AsyncDB) Put(ctx *ConnectionContext, dataType interface{}, key interface{}, value interface{}) <-chan databases.RequestResult {
+func (p *AsyncDB) CreateTable(ctx *ConnectionContext, table Table) error {
+	hash := table.Hash()
+	if _, ok := p.data[hash]; ok {
+		return ErrTableExists
+	}
+	p.data[hash] = table
+	return nil
+}
+
+func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{}, value interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
 		implTransaction := ctx.Txn == nil
@@ -86,7 +102,7 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, dataType interface{}, key interfac
 	return resultChan
 }
 
-func (p *AsyncDB) Get(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
+func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
 		implTransaction := ctx.Txn == nil
@@ -114,7 +130,7 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, dataType interface{}, key interfac
 	return resultChan
 }
 
-func (p *AsyncDB) Delete(ctx *ConnectionContext, dataType interface{}, key interface{}) <-chan databases.RequestResult {
+func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
 		implTransaction := ctx.Txn == nil
