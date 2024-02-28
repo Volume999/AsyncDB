@@ -12,6 +12,7 @@ type Table interface {
 	Hash() uint64
 	Get(key interface{}) (value interface{}, err error)
 	Put(key interface{}, value interface{}) error
+	Delete(key interface{}) error
 }
 
 type GenericTable[K comparable, V any] struct {
@@ -49,5 +50,14 @@ func (t *GenericTable[K, V]) Put(key interface{}, value interface{}) error {
 		return fmt.Errorf("%w: key - %T, value - %T", ErrTypeMismatch, key, value)
 	}
 	t.data[keyTyped] = valueTyped
+	return nil
+}
+
+func (t *GenericTable[K, V]) Delete(key interface{}) error {
+	keyTyped, ok := key.(K)
+	if !ok {
+		return fmt.Errorf("%w: %T", ErrTypeMismatch, key)
+	}
+	delete(t.data, keyTyped)
 	return nil
 }

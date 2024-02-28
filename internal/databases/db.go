@@ -27,3 +27,4 @@ type AsyncDatabase interface {
 }
 
 var ErrKeyNotFound = errors.New("key not found")
+var ErrTableNotFound = errors.New("table not found")

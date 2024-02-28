@@ -17,13 +17,13 @@ func NewDiscrictStore(l *log.Logger, db *asyncdb.AsyncDB) Store[models.District,
 }
 
 func (d *DisctrictStore) Put(ctx *asyncdb.ConnectionContext, value models.District) <-chan databases.RequestResult {
-	return d.db.Put(ctx, models.District{}, models.DistrictPK{Id: value.Id}, value)
+	return d.db.Put(ctx, "District", models.DistrictPK{Id: value.Id}, value)
 }
 
 func (d *DisctrictStore) Get(ctx *asyncdb.ConnectionContext, key models.DistrictPK) <-chan databases.RequestResult {
-	return d.db.Get(ctx, models.District{}, key)
+	return d.db.Get(ctx, "District", key)
 }
 
 func (d *DisctrictStore) Delete(ctx *asyncdb.ConnectionContext, key models.DistrictPK) <-chan databases.RequestResult {
-	return d.db.Delete(ctx, models.District{}, key)
+	return d.db.Delete(ctx, "District", key)
 }

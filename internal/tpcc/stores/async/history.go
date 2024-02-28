@@ -22,9 +22,9 @@ func (i *HistoryStore) Put(ctx *asyncdb.ConnectionContext, value models.History)
 }
 
 func (i *HistoryStore) Get(ctx *asyncdb.ConnectionContext, key models.HistoryPK) <-chan databases.RequestResult {
-	return i.db.Get(ctx, models.Item{}, key)
+	return i.db.Get(ctx, "History", key)
 }
 
 func (i *HistoryStore) Delete(ctx *asyncdb.ConnectionContext, key models.HistoryPK) <-chan databases.RequestResult {
-	return i.db.Delete(ctx, models.Item{}, key)
+	return i.db.Delete(ctx, "History", key)
 }

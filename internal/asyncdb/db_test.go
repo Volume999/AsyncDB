@@ -133,11 +133,11 @@ func (suite *AsyncDBSuite) SetupTest() {
 	tm := NewTransactionManager()
 	lm := NewLockManager()
 	suite.db = NewAsyncDB(tm, lm)
-	err := suite.db.LoadData(mockData())
+	ctx, err := suite.db.Connect()
+	_ = suite.db.LoadData(ctx, mockData())
 	if err != nil {
 		suite.Failf("Failed to load data", "Error: %v", err)
 	}
-	ctx, err := suite.db.Connect()
 	if err != nil {
 		suite.Failf("Failed to connect", "Error: %v", err)
 	}
@@ -146,7 +146,7 @@ func (suite *AsyncDBSuite) SetupTest() {
 
 func (suite *AsyncDBSuite) TestPocsDB_Get_ReturnsItem_When_Exists() {
 	db := suite.db
-	resChan := db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 1})
+	resChan := db.Get(suite.ctx, "Item", models.ItemPK{Id: 1})
 	suite.Eventually(func() bool {
 		select {
 		case res := <-resChan:
@@ -167,7 +167,7 @@ func (suite *AsyncDBSuite) TestPocsDB_Get_ReturnsItem_When_Exists() {
 
 func (suite *AsyncDBSuite) TestPocsDB_Get_ReturnsError_When_NotExists() {
 	db := suite.db
-	resChan := db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 2})
+	resChan := db.Get(suite.ctx, "Item", models.ItemPK{Id: 2})
 	suite.Eventually(func() bool {
 		select {
 		case res := <-resChan:
@@ -182,7 +182,7 @@ func (suite *AsyncDBSuite) TestPocsDB_Get_ReturnsError_When_NotExists() {
 
 func (suite *AsyncDBSuite) TestPocsDB_Put_NoError_When_PutItem() {
 	db := suite.db
-	resChan := db.Put(suite.ctx, models.Item{}, models.ItemPK{Id: 2}, models.Item{})
+	resChan := db.Put(suite.ctx, "Item", models.ItemPK{Id: 2}, "Item")
 	suite.Eventually(func() bool {
 		select {
 		case res := <-resChan:
@@ -196,7 +196,7 @@ func (suite *AsyncDBSuite) TestPocsDB_Put_NoError_When_PutItem() {
 
 func (suite *AsyncDBSuite) TestPocsDB_Put_ReturnsNoError_When_GetItem() {
 	db := suite.db
-	resChan := db.Put(suite.ctx, models.Item{}, models.ItemPK{Id: 2}, models.Item{})
+	resChan := db.Put(suite.ctx, "Item", models.ItemPK{Id: 2}, "Item")
 	suite.Eventuallyf(func() bool {
 		select {
 		case <-resChan:
@@ -205,7 +205,7 @@ func (suite *AsyncDBSuite) TestPocsDB_Put_ReturnsNoError_When_GetItem() {
 			return false
 		}
 	}, time.Second*5, time.Millisecond*100, "Put did not return")
-	resChan = db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 2})
+	resChan = db.Get(suite.ctx, "Item", models.ItemPK{Id: 2})
 	suite.Eventually(func() bool {
 		select {
 		case res := <-resChan:
@@ -226,9 +226,9 @@ func (suite *AsyncDBSuite) TestPocsDB_Get_ReturnsItem_After_Put() {
 		ImageId: 1,
 		Data:    "data",
 	}
-	resChan := db.Put(suite.ctx, models.Item{}, models.ItemPK{Id: 2}, item)
+	resChan := db.Put(suite.ctx, "Item", models.ItemPK{Id: 2}, item)
 	<-resChan
-	resChan = db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 2})
+	resChan = db.Get(suite.ctx, "Item", models.ItemPK{Id: 2})
 	suite.Eventually(func() bool {
 		select {
 		case res := <-resChan:
@@ -250,7 +250,7 @@ func (suite *AsyncDBSuite) TestPocsDB_Put_UpdatesItem_When_Exists() {
 		ImageId: 1,
 		Data:    "data",
 	}
-	resChan := db.Put(suite.ctx, models.Item{}, models.ItemPK{Id: 1}, item)
+	resChan := db.Put(suite.ctx, "Item", models.ItemPK{Id: 1}, item)
 	suite.Eventuallyf(func() bool {
 		select {
 		case res := <-resChan:
@@ -260,7 +260,7 @@ func (suite *AsyncDBSuite) TestPocsDB_Put_UpdatesItem_When_Exists() {
 		}
 	}, time.Second*5, time.Millisecond*100, "Put #1 did not succeed")
 	item.Name = "newName"
-	resChan = db.Put(suite.ctx, models.Item{}, models.ItemPK{Id: 1}, item)
+	resChan = db.Put(suite.ctx, "Item", models.ItemPK{Id: 1}, item)
 	suite.Eventuallyf(func() bool {
 		select {
 		case res := <-resChan:
@@ -269,7 +269,7 @@ func (suite *AsyncDBSuite) TestPocsDB_Put_UpdatesItem_When_Exists() {
 			return false
 		}
 	}, time.Second*5, time.Millisecond*100, "Put #2 did not succeed")
-	resChan = db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 1})
+	resChan = db.Get(suite.ctx, "Item", models.ItemPK{Id: 1})
 	suite.Eventually(func() bool {
 		select {
 		case res := <-resChan:
@@ -284,7 +284,7 @@ func (suite *AsyncDBSuite) TestPocsDB_Put_UpdatesItem_When_Exists() {
 
 func (suite *AsyncDBSuite) TestPocsDB_Delete_NoError_When_ItemExists() {
 	db := suite.db
-	resChan := db.Delete(suite.ctx, models.Item{}, models.ItemPK{Id: 1})
+	resChan := db.Delete(suite.ctx, "Item", models.ItemPK{Id: 1})
 	suite.Eventually(func() bool {
 		select {
 		case res := <-resChan:
@@ -298,7 +298,7 @@ func (suite *AsyncDBSuite) TestPocsDB_Delete_NoError_When_ItemExists() {
 
 func (suite *AsyncDBSuite) TestPocsDB_Delete_ReturnsError_When_ItemDoesNotExist() {
 	db := suite.db
-	resChan := db.Delete(suite.ctx, models.Item{}, models.ItemPK{Id: 2})
+	resChan := db.Delete(suite.ctx, "Item", models.ItemPK{Id: 2})
 	suite.Eventually(func() bool {
 		select {
 		case res := <-resChan:
@@ -312,7 +312,7 @@ func (suite *AsyncDBSuite) TestPocsDB_Delete_ReturnsError_When_ItemDoesNotExist(
 
 func (suite *AsyncDBSuite) TestPocsDB_Get_ReturnsError_After_Delete() {
 	db := suite.db
-	resChan := db.Delete(suite.ctx, models.Item{}, models.ItemPK{Id: 1})
+	resChan := db.Delete(suite.ctx, "Item", models.ItemPK{Id: 1})
 	suite.Eventuallyf(func() bool {
 		select {
 		case <-resChan:
@@ -321,7 +321,7 @@ func (suite *AsyncDBSuite) TestPocsDB_Get_ReturnsError_After_Delete() {
 			return false
 		}
 	}, time.Second*5, time.Millisecond*100, "Delete did not return")
-	resChan = db.Get(suite.ctx, models.Item{}, models.ItemPK{Id: 1})
+	resChan = db.Get(suite.ctx, "Item", models.ItemPK{Id: 1})
 	suite.Eventually(func() bool {
 		select {
 		case res := <-resChan:

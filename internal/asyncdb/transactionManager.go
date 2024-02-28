@@ -24,10 +24,10 @@ type Txn struct {
 }
 
 type Action struct {
-	Op       int
-	DataType interface{}
-	Key      interface{}
-	Value    interface{}
+	Op        int
+	tableName string
+	Key       interface{}
+	Value     interface{}
 }
 
 type LogEntry[T any] struct {
@@ -95,64 +95,64 @@ func (t *TransactionManagerImpl) DeleteLog(ConnId uuid.UUID) error {
 }
 
 func (t *TransactionLog) addAction(a Action) {
-	switch a.DataType.(type) {
-	case models.Warehouse:
+	switch a.tableName {
+	case "Warehouse":
 		if a.Value == nil {
 			t.WarehouseLog[a.Key.(models.WarehousePK)] = LogEntry[models.Warehouse]{Op: a.Op}
 			return
 		} else {
 			t.WarehouseLog[a.Key.(models.WarehousePK)] = LogEntry[models.Warehouse]{Op: a.Op, Value: a.Value.(models.Warehouse)}
 		}
-	case models.Stock:
+	case "Stock":
 		if a.Value == nil {
 			t.StockLog[a.Key.(models.StockPK)] = LogEntry[models.Stock]{Op: a.Op}
 			return
 		} else {
 			t.StockLog[a.Key.(models.StockPK)] = LogEntry[models.Stock]{Op: a.Op, Value: a.Value.(models.Stock)}
 		}
-	case models.Order:
+	case "Order":
 		if a.Value == nil {
 			t.OrderLog[a.Key.(models.OrderPK)] = LogEntry[models.Order]{Op: a.Op}
 			return
 		} else {
 			t.OrderLog[a.Key.(models.OrderPK)] = LogEntry[models.Order]{Op: a.Op, Value: a.Value.(models.Order)}
 		}
-	case models.NewOrder:
+	case "NewOrder":
 		if a.Value == nil {
 			t.NewOrderLog[a.Key.(models.NewOrderPK)] = LogEntry[models.NewOrder]{Op: a.Op}
 			return
 		} else {
 			t.NewOrderLog[a.Key.(models.NewOrderPK)] = LogEntry[models.NewOrder]{Op: a.Op, Value: a.Value.(models.NewOrder)}
 		}
-	case models.District:
+	case "District":
 		if a.Value == nil {
 			t.DistrictLog[a.Key.(models.DistrictPK)] = LogEntry[models.District]{Op: a.Op}
 			return
 		} else {
 			t.DistrictLog[a.Key.(models.DistrictPK)] = LogEntry[models.District]{Op: a.Op, Value: a.Value.(models.District)}
 		}
-	case models.Customer:
+	case "Customer":
 		if a.Value == nil {
 			t.CustomerLog[a.Key.(models.CustomerPK)] = LogEntry[models.Customer]{Op: a.Op}
 			return
 		} else {
 			t.CustomerLog[a.Key.(models.CustomerPK)] = LogEntry[models.Customer]{Op: a.Op, Value: a.Value.(models.Customer)}
 		}
-	case models.Item:
+	case "Item":
 		if a.Value == nil {
 			t.ItemLog[a.Key.(models.ItemPK)] = LogEntry[models.Item]{Op: a.Op}
 			return
 		} else {
 			t.ItemLog[a.Key.(models.ItemPK)] = LogEntry[models.Item]{Op: a.Op, Value: a.Value.(models.Item)}
 		}
-	case models.OrderLine:
+	case "OrderLine":
 		if a.Value == nil {
 			t.OrderLineLog[a.Key.(models.OrderLinePK)] = LogEntry[models.OrderLine]{Op: a.Op}
 			return
 		} else {
 			t.OrderLineLog[a.Key.(models.OrderLinePK)] = LogEntry[models.OrderLine]{Op: a.Op, Value: a.Value.(models.OrderLine)}
 		}
-	case models.History:
+	case "History":
 		if a.Value == nil {
 			t.HistoryLog[a.Key.(models.HistoryPK)] = LogEntry[models.History]{Op: a.Op}
 			return

@@ -29,29 +29,29 @@ func debug() {
 	tm := asyncdb.NewTransactionManager()
 	lm := asyncdb.NewLockManager()
 	db := asyncdb.NewAsyncDB(tm, lm)
-	_ = db.LoadData(data)
 	ctx, _ := db.Connect()
+	_ = db.LoadData(ctx, data)
 
 	fmt.Println("DB connected successfully!")
 	fmt.Printf("Connection Context: %# v\n", pretty.Formatter(ctx))
 
 	// Try putting
-	resChan := db.Put(ctx, models.Item{}, models.ItemPK{Id: 1}, models.Item{Name: "Item 1", Price: 1000, Data: "Data 1"})
+	resChan := db.Put(ctx, "Item", models.ItemPK{Id: 1}, models.Item{Name: "Item 1", Price: 1000, Data: "Data 1"})
 	res := <-resChan
 	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
 
 	// Try getting
-	resChan = db.Get(ctx, models.Item{}, models.ItemPK{Id: 1})
+	resChan = db.Get(ctx, "Item", models.ItemPK{Id: 1})
 	res = <-resChan
 	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
 
 	// Try deleting
-	resChan = db.Delete(ctx, models.Item{}, models.ItemPK{Id: 1})
+	resChan = db.Delete(ctx, "Item", models.ItemPK{Id: 1})
 	res = <-resChan
 	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
 
 	// Try getting again
-	resChan = db.Get(ctx, models.Item{}, models.ItemPK{Id: 1})
+	resChan = db.Get(ctx, "Item", models.ItemPK{Id: 1})
 	res = <-resChan
 	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
 
