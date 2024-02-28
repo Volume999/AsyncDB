@@ -2,10 +2,9 @@ package asyncdb
 
 import (
 	"AsyncDB/internal/databases"
-	"AsyncDB/internal/tpcc/dataloaders"
-	"AsyncDB/internal/tpcc/models"
 	"errors"
 	"fmt"
+	"github.com/dlsniper/debugger"
 	"github.com/google/uuid"
 )
 
@@ -36,13 +35,6 @@ type AsyncDB struct {
 
 func NewAsyncDB(tManager *TransactionManagerImpl, lManager *LockManagerImpl) *AsyncDB {
 	return &AsyncDB{tManager: tManager, lManager: lManager, data: make(map[uint64]Table)}
-}
-
-func (p *AsyncDB) LoadData(ctx *ConnectionContext, data dataloaders.GeneratedData) error {
-	// Warehouses
-	table := NewGenericTable[models.WarehousePK, models.Warehouse]("warehouses")
-	_ = p.CreateTable(ctx, table)
-	return nil
 }
 
 func (p *AsyncDB) Connect() (*ConnectionContext, error) {
@@ -199,7 +191,10 @@ func (p *AsyncDB) RollbackTransaction(ctx *ConnectionContext) error {
 	return err
 }
 
-func (p *AsyncDB) applyLogs(log *TransactionLog) {}
+// TODO: Implement this
+func (p *AsyncDB) applyLogs(log *TransactionLog) {
+
+}
 
 func (p *AsyncDB) putValue(ctx *ConnectionContext, tableName string, key interface{}, value interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
@@ -225,6 +220,10 @@ func (p *AsyncDB) putValue(ctx *ConnectionContext, tableName string, key interfa
 func (p *AsyncDB) getValue(ctx *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
+		debugger.SetLabels(func() []string {
+			return []string{"asyncdb", "getValue", "tableName", tableName, "key", fmt.Sprintf("%v", key)}
+		})
+
 		hash := HashStringUint64(tableName)
 		table, ok := p.data[hash]
 		if !ok {

@@ -61,3 +61,8 @@ func (t *GenericTable[K, V]) Delete(key interface{}) error {
 	delete(t.data, keyTyped)
 	return nil
 }
+
+func LoadTable[K comparable, V any](name string, data map[K]V, table *GenericTable[K, V]) {
+	table.name = name
+	table.data = data
+}

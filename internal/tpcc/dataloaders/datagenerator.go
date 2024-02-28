@@ -54,7 +54,7 @@ func NewDataGeneratorImpl(warehouseNumber int, consts config.Constants, l *log.L
 	}
 }
 
-func (gen DataGeneratorImpl) GenerateData() (GeneratedData, error) {
+func (gen DataGeneratorImpl) GenerateData() (*GeneratedData, error) {
 	data := GeneratedData{
 		Warehouses: gen.generateWarehouses(),
 		Customers:  gen.generateCustomers(),
@@ -66,7 +66,7 @@ func (gen DataGeneratorImpl) GenerateData() (GeneratedData, error) {
 	}
 	data.OrderLines = gen.generateOrderLines(data.Orders)
 	data.NewOrders = gen.generateNewOrders(data.Orders)
-	return data, nil
+	return &data, nil
 }
 
 func (gen DataGeneratorImpl) generateWarehouses() map[models.WarehousePK]models.Warehouse {
