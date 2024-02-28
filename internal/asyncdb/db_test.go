@@ -1,14 +1,16 @@
-package asyncdb
+package asyncdb_test
 
 import (
+	. "AsyncDB/internal/asyncdb"
 	"AsyncDB/internal/tpcc/dataloaders"
+	"AsyncDB/internal/tpcc/dataloaders/loaders"
 	"AsyncDB/internal/tpcc/models"
 	"github.com/stretchr/testify/suite"
 	"testing"
 	"time"
 )
 
-func mockData() dataloaders.GeneratedData {
+func mockData() *dataloaders.GeneratedData {
 	warehousePK := models.WarehousePK{Id: 1}
 	warehouse := models.Warehouse{
 		Id:      1,
@@ -95,7 +97,7 @@ func mockData() dataloaders.GeneratedData {
 		Quantity:    1,
 		Dist01:      "dist01",
 	}
-	return dataloaders.GeneratedData{
+	data := dataloaders.GeneratedData{
 		Warehouses: map[models.WarehousePK]models.Warehouse{
 			warehousePK: warehouse,
 		},
@@ -121,6 +123,7 @@ func mockData() dataloaders.GeneratedData {
 			stockPK: stock,
 		},
 	}
+	return &data
 }
 
 type AsyncDBSuite struct {
@@ -134,7 +137,9 @@ func (suite *AsyncDBSuite) SetupTest() {
 	lm := NewLockManager()
 	suite.db = NewAsyncDB(tm, lm)
 	ctx, err := suite.db.Connect()
-	_ = suite.db.LoadData(ctx, mockData())
+	data := mockData()
+	loader := loaders.NewAsyncDBLoader(suite.db, data)
+	loader.Load()
 	if err != nil {
 		suite.Failf("Failed to load data", "Error: %v", err)
 	}
