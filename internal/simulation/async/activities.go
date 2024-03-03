@@ -30,6 +30,8 @@ func validateAvailability() {
 			util.SimulateCpuLoad(100)
 		}()
 	}
+	wg.Wait()
+	util.SimulateCpuLoad(10000)
 }
 
 func verifyCustomer() {
