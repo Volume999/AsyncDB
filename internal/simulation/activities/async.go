@@ -8,11 +8,13 @@ import (
 
 type AsyncSimulator struct {
 	config *Config
+	disk   DiskAccessSimulator
 }
 
-func NewAsyncSimulator(config *Config) *AsyncSimulator {
+func NewAsyncSimulator(config *Config, disk DiskAccessSimulator) *AsyncSimulator {
 	return &AsyncSimulator{
 		config: config,
+		disk:   disk,
 	}
 }
 
@@ -26,7 +28,7 @@ func (s *AsyncSimulator) ValidateAvailability() {
 	for range orderItemsCnt {
 		go func() {
 			defer wg.Done()
-			util.SimulateSyncIoLoad()
+			s.disk.SimulateDiskAccess()
 			util.SimulateCpuLoad(100)
 		}()
 	}
@@ -36,7 +38,7 @@ func (s *AsyncSimulator) ValidateAvailability() {
 	for range skuItemsCnt {
 		go func() {
 			defer wg.Done()
-			util.SimulateSyncIoLoad()
+			s.disk.SimulateDiskAccess()
 			util.SimulateCpuLoad(100)
 		}()
 	}
@@ -46,7 +48,7 @@ func (s *AsyncSimulator) ValidateAvailability() {
 
 func (s *AsyncSimulator) VerifyCustomer() {
 	wg := &sync.WaitGroup{}
-	util.SimulateSyncIoLoad()
+	s.disk.SimulateDiskAccess()
 	util.SimulateCpuLoad(100)
 	appliedOffersCnt := s.config.AppliedOffersCnt
 	wg.Add(appliedOffersCnt)
@@ -55,7 +57,7 @@ func (s *AsyncSimulator) VerifyCustomer() {
 			defer wg.Done()
 			isLimitedUse := rand.Intn(2) == 0
 			if isLimitedUse {
-				util.SimulateSyncIoLoad()
+				s.disk.SimulateDiskAccess()
 				util.SimulateCpuLoad(1000)
 			}
 		}()
@@ -64,7 +66,7 @@ func (s *AsyncSimulator) VerifyCustomer() {
 }
 
 func (s *AsyncSimulator) ValidatePayment() {
-	util.SimulateSyncIoLoad()
+	s.disk.SimulateDiskAccess()
 	paymentsCnt := s.config.PaymentsCnt
 	wg := &sync.WaitGroup{}
 	wg.Add(paymentsCnt)
@@ -73,10 +75,10 @@ func (s *AsyncSimulator) ValidatePayment() {
 			defer wg.Done()
 			isActive := rand.Intn(10) < 4
 			if isActive {
-				util.SimulateSyncIoLoad()
+				s.disk.SimulateDiskAccess()
 				util.SimulateCpuLoad(10000)
-				util.SimulateSyncIoLoad()
-				util.SimulateSyncIoLoad()
+				s.disk.SimulateDiskAccess()
+				s.disk.SimulateDiskAccess()
 			}
 		}()
 	}
@@ -88,31 +90,31 @@ func (s *AsyncSimulator) ValidateProductOption() {
 }
 
 func (s *AsyncSimulator) RecordOffer() {
-	util.SimulateSyncIoLoad()
+	s.disk.SimulateDiskAccess()
 	util.SimulateCpuLoad(10000)
 }
 
 func (s *AsyncSimulator) CommitTax() {
-	util.SimulateSyncIoLoad()
-	util.SimulateSyncIoLoad()
+	s.disk.SimulateDiskAccess()
+	s.disk.SimulateDiskAccess()
 }
 
 func (s *AsyncSimulator) DecrementInventory() {
-	util.SimulateSyncIoLoad()
+	s.disk.SimulateDiskAccess()
 	orderItemsCnt := s.config.OrderItemsCnt
 	wg := &sync.WaitGroup{}
 	wg.Add(orderItemsCnt)
 	for range orderItemsCnt {
 		go func() {
 			defer wg.Done()
-			util.SimulateSyncIoLoad()
+			s.disk.SimulateDiskAccess()
 			util.SimulateCpuLoad(1000)
-			util.SimulateSyncIoLoad()
+			s.disk.SimulateDiskAccess()
 		}()
 	}
 	wg.Wait()
 }
 
 func (s *AsyncSimulator) CompleteOrder() {
-	util.SimulateSyncIoLoad()
+	s.disk.SimulateDiskAccess()
 }
