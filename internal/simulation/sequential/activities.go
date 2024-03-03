@@ -1,31 +1,32 @@
 package sequentialwf
 
 import (
+	"AsyncDB/internal/simulation"
 	"AsyncDB/pkg/util"
 	"math/rand"
 )
 
-func ValidateCheckout() {
+func ValidateCheckout(config *simulation.Config) {
 	// This function was not implemented in the original BroadLeaf use-case
 }
 
-func ValidateAvailability() {
-	orderItemsCnt := rand.Intn(20) + 1 // Item count range: [1, 20]
+func ValidateAvailability(config *simulation.Config) {
+	orderItemsCnt := config.OrderItemsCnt
 	for range orderItemsCnt {
 		util.SimulateSyncIoLoad() // Load to get the item availability
 		util.SimulateCpuLoad(100) // Merge SKU Items
 	}
-	skuItemsCnt := rand.Intn(orderItemsCnt) + 1 // SKU count range: [1, orderItemsCnt]
+	skuItemsCnt := config.SKUItemsCnt
 	for range skuItemsCnt {
 		util.SimulateSyncIoLoad() // Load to get the SKU availability
 		util.SimulateCpuLoad(100) // Some operations on SKU Items
 	}
 }
 
-func VerifyCustomer() {
+func VerifyCustomer(config *simulation.Config) {
 	util.SimulateSyncIoLoad() // Load to get the customer details
 	util.SimulateCpuLoad(100)
-	appliedOffersCnt := rand.Intn(10) + 1 // Offer count range: [1, 10]
+	appliedOffersCnt := config.AppliedOffersCnt
 	for range appliedOffersCnt {
 		isLimitedUse := rand.Intn(2) == 0
 		if isLimitedUse {
@@ -35,9 +36,9 @@ func VerifyCustomer() {
 	}
 }
 
-func ValidatePayment() {
+func ValidatePayment(config *simulation.Config) {
 	util.SimulateSyncIoLoad() // Get Order
-	paymentsCnt := rand.Intn(7) + 1
+	paymentsCnt := config.PaymentsCnt
 	for range paymentsCnt {
 		isActive := rand.Intn(10) < 4
 		if isActive {
@@ -49,19 +50,23 @@ func ValidatePayment() {
 	}
 }
 
-func RecordOffer() {
+func ValidateProductOption(config *simulation.Config) {
+
+}
+
+func RecordOffer(config *simulation.Config) {
 	util.SimulateSyncIoLoad() // Get Order
 	util.SimulateCpuLoad(10000)
 }
 
-func CommitTax() {
+func CommitTax(config *simulation.Config) {
 	util.SimulateSyncIoLoad() // Get Order
 	util.SimulateSyncIoLoad()
 }
 
-func DecrementInventory() {
+func DecrementInventory(config *simulation.Config) {
 	util.SimulateSyncIoLoad()
-	orderItemsCnt := rand.Intn(20) + 1 // Item count range: [1, 20]
+	orderItemsCnt := config.OrderItemsCnt
 	for range orderItemsCnt {
 		util.SimulateSyncIoLoad()  // put Item
 		util.SimulateCpuLoad(1000) // Merge SKU Items
@@ -69,6 +74,6 @@ func DecrementInventory() {
 	}
 }
 
-func CompleteOrder() {
+func CompleteOrder(config *simulation.Config) {
 	util.SimulateSyncIoLoad()
 }

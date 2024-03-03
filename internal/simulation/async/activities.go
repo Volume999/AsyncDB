@@ -1,16 +1,17 @@
 package asyncwf
 
 import (
+	"AsyncDB/internal/simulation"
 	"AsyncDB/pkg/util"
 	"math/rand"
 	"sync"
 )
 
-func validateCheckout() {
+func validateCheckout(config *simulation.Config) {
 }
 
-func validateAvailability() {
-	orderItemsCnt := rand.Intn(20) + 1 // Item count range: [1, 20]
+func validateAvailability(config *simulation.Config) {
+	orderItemsCnt := config.OrderItemsCnt
 	wg := &sync.WaitGroup{}
 	wg.Add(orderItemsCnt)
 	for range orderItemsCnt {
@@ -21,7 +22,7 @@ func validateAvailability() {
 		}()
 	}
 	wg.Wait()
-	skuItemsCnt := rand.Intn(orderItemsCnt) + 1 // SKU count range: [1, orderItemsCnt]
+	skuItemsCnt := config.SKUItemsCnt
 	wg.Add(skuItemsCnt)
 	for range skuItemsCnt {
 		go func() {
@@ -34,11 +35,11 @@ func validateAvailability() {
 	util.SimulateCpuLoad(10000)
 }
 
-func verifyCustomer() {
+func verifyCustomer(config *simulation.Config) {
 	wg := &sync.WaitGroup{}
 	util.SimulateSyncIoLoad()
 	util.SimulateCpuLoad(100)
-	appliedOffersCnt := rand.Intn(10) + 1 // Offer count range: [1, 10]
+	appliedOffersCnt := config.AppliedOffersCnt
 	wg.Add(appliedOffersCnt)
 	for range appliedOffersCnt {
 		go func() {
@@ -53,9 +54,9 @@ func verifyCustomer() {
 	wg.Wait()
 }
 
-func validatePayment() {
+func validatePayment(config *simulation.Config) {
 	util.SimulateSyncIoLoad()
-	paymentsCnt := rand.Intn(7) + 1
+	paymentsCnt := config.PaymentsCnt
 	wg := &sync.WaitGroup{}
 	wg.Add(paymentsCnt)
 	for range paymentsCnt {
@@ -73,19 +74,19 @@ func validatePayment() {
 	wg.Wait()
 }
 
-func recordOffer() {
+func recordOffer(config *simulation.Config) {
 	util.SimulateSyncIoLoad()
 	util.SimulateCpuLoad(10000)
 }
 
-func commitTax() {
+func commitTax(config *simulation.Config) {
 	util.SimulateSyncIoLoad()
 	util.SimulateSyncIoLoad()
 }
 
-func decrementInventory() {
+func decrementInventory(config *simulation.Config) {
 	util.SimulateSyncIoLoad()
-	orderItemsCnt := rand.Intn(20) + 1 // Item count range: [1, 20]
+	orderItemsCnt := config.OrderItemsCnt
 	wg := &sync.WaitGroup{}
 	wg.Add(orderItemsCnt)
 	for range orderItemsCnt {
@@ -99,6 +100,6 @@ func decrementInventory() {
 	wg.Wait()
 }
 
-func completeOrder() {
+func completeOrder(config *simulation.Config) {
 	util.SimulateSyncIoLoad()
 }

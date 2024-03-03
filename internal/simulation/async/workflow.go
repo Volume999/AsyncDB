@@ -1,6 +1,7 @@
 package asyncwf
 
 import (
+	"AsyncDB/internal/simulation"
 	sequentialwf "AsyncDB/internal/simulation/sequential"
 	"sync"
 )
@@ -8,7 +9,8 @@ import (
 type AsyncWorkflow struct{}
 
 func (w *AsyncWorkflow) executeSequentialActivities() {
-	validationPhase := []func(){
+	config := simulation.RandomConfig()
+	validationPhase := []func(config *simulation.Config){
 		sequentialwf.ValidateCheckout,
 		sequentialwf.ValidateAvailability,
 		sequentialwf.VerifyCustomer,
@@ -18,31 +20,32 @@ func (w *AsyncWorkflow) executeSequentialActivities() {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(validationPhase))
 	for _, activity := range validationPhase {
-		go func(activity func()) {
+		go func(activity func(config *simulation.Config)) {
 			defer wg.Done()
-			activity()
+			activity(config)
 		}(activity)
 	}
 	wg.Wait()
 
-	operationPhase := []func(){
+	operationPhase := []func(config *simulation.Config){
 		sequentialwf.RecordOffer,
 		sequentialwf.CommitTax,
 		sequentialwf.DecrementInventory,
 	}
 	wg.Add(len(operationPhase))
 	for _, activity := range operationPhase {
-		go func(activity func()) {
+		go func(activity func(config *simulation.Config)) {
 			defer wg.Done()
-			activity()
+			activity(config)
 		}(activity)
 	}
 	wg.Wait()
-	sequentialwf.CompleteOrder()
+	sequentialwf.CompleteOrder(config)
 }
 
 func (w *AsyncWorkflow) executeAsyncActivities() {
-	validationPhase := []func(){
+	config := simulation.RandomConfig()
+	validationPhase := []func(config *simulation.Config){
 		validateCheckout,
 		validateAvailability,
 		verifyCustomer,
@@ -52,27 +55,27 @@ func (w *AsyncWorkflow) executeAsyncActivities() {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(validationPhase))
 	for _, activity := range validationPhase {
-		go func(activity func()) {
+		go func(activity func(config *simulation.Config)) {
 			defer wg.Done()
-			activity()
+			activity(config)
 		}(activity)
 	}
 	wg.Wait()
 
-	operationPhase := []func(){
+	operationPhase := []func(config *simulation.Config){
 		recordOffer,
 		commitTax,
 		decrementInventory,
 	}
 	wg.Add(len(operationPhase))
 	for _, activity := range operationPhase {
-		go func(activity func()) {
+		go func(activity func(config *simulation.Config)) {
 			defer wg.Done()
-			activity()
+			activity(config)
 		}(activity)
 	}
 	wg.Wait()
-	completeOrder()
+	completeOrder(config)
 }
 
 func (w *AsyncWorkflow) ExecuteAsync() {

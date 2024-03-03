@@ -1,4 +1,4 @@
-package simulation
+package simulation_test
 
 import (
 	asyncwf "AsyncDB/internal/simulation/async"
