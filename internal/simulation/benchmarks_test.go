@@ -1,25 +1,16 @@
-package simulation_test
+package simulation
 
 import (
-	asyncwf "AsyncDB/internal/simulation/async"
-	sequentialwf "AsyncDB/internal/simulation/sequential"
+	"AsyncDB/internal/simulation/activities"
+	"AsyncDB/internal/simulation/workflows"
 	"strconv"
 	"testing"
 )
 
-type Workflow interface {
-	ExecuteSequential()
-	ExecuteAsync()
-}
-
-func benchmarkWorkflow(w Workflow, b *testing.B, async bool) {
+func benchmarkWorkflow(w workflows.Workflow, b *testing.B, async bool) {
 	parallelisms := []int{1, 10, 100, 1000, 10000, 100000}
 	f := func() {
-		if async {
-			w.ExecuteAsync()
-		} else {
-			w.ExecuteSequential()
-		}
+		w.Execute()
 	}
 	b.ResetTimer()
 	for _, parallelism := range parallelisms {
@@ -35,16 +26,22 @@ func benchmarkWorkflow(w Workflow, b *testing.B, async bool) {
 }
 
 func BenchmarkSequentialWorkflow(b *testing.B) {
-	w := &sequentialwf.SequentialWorkflow{}
+	config := activities.RandomConfig()
+	simulator := activities.NewSequentialSimulator(config)
+	w := workflows.NewSequentialWorkflow(simulator)
 	benchmarkWorkflow(w, b, false)
 }
 
 func BenchmarkAsyncWorkflowSequentialActivities(b *testing.B) {
-	w := &asyncwf.AsyncWorkflow{}
+	config := activities.RandomConfig()
+	simulator := activities.NewSequentialSimulator(config)
+	w := workflows.NewAsyncWorkflow(simulator)
 	benchmarkWorkflow(w, b, false)
 }
 
 func BenchmarkAsyncWorkflowAsyncActivities(b *testing.B) {
-	w := &asyncwf.AsyncWorkflow{}
+	config := activities.RandomConfig()
+	simulator := activities.NewAsyncSimulator(config)
+	w := workflows.NewAsyncWorkflow(simulator)
 	benchmarkWorkflow(w, b, true)
 }
