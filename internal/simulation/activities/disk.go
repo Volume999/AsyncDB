@@ -30,7 +30,9 @@ func NewThreadSafeDiskAccessSimulator() *ThreadSafeDiskAccessSimulator {
 }
 
 func (t *ThreadSafeDiskAccessSimulator) SimulateDiskAccess() {
-	t.lock.Lock()
-	defer t.lock.Unlock()
 	util.SimulateSyncIoLoad()
+	t.lock.Lock()
+	// Writing to the log file
+	util.SimulateCpuLoad(5)
+	t.lock.Unlock()
 }

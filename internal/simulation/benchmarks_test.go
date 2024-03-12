@@ -7,6 +7,8 @@ import (
 	"testing"
 )
 
+var config = activities.RandomConfig()
+
 func benchmarkWorkflow(setup func() workflows.Workflow, b *testing.B, async bool) {
 	parallelisms := []int{1, 10, 100, 1000, 10000, 100000}
 	f := func() {
@@ -26,10 +28,12 @@ func benchmarkWorkflow(setup func() workflows.Workflow, b *testing.B, async bool
 	}
 }
 
+// TODO: Can further refactor the benchmarks
+
 func BenchmarkSequentialWorkflowUnsafeIO(b *testing.B) {
 	setup := func() workflows.Workflow {
 		disk := activities.NewUnsafeDiskAccessSimulator()
-		config := activities.RandomConfig()
+		//config := activities.RandomConfig()
 		simulator := activities.NewSequentialSimulator(config, disk)
 		return workflows.NewSequentialWorkflow(simulator)
 	}
@@ -39,7 +43,7 @@ func BenchmarkSequentialWorkflowUnsafeIO(b *testing.B) {
 func BenchmarkAsyncWorkflowSequentialActivitiesUnsafeIO(b *testing.B) {
 	setup := func() workflows.Workflow {
 		disk := activities.NewUnsafeDiskAccessSimulator()
-		config := activities.RandomConfig()
+		//config := activities.RandomConfig()
 		simulator := activities.NewSequentialSimulator(config, disk)
 		return workflows.NewAsyncWorkflow(simulator)
 	}
@@ -49,7 +53,7 @@ func BenchmarkAsyncWorkflowSequentialActivitiesUnsafeIO(b *testing.B) {
 func BenchmarkAsyncWorkflowAsyncActivitiesUnsafeIO(b *testing.B) {
 	setup := func() workflows.Workflow {
 		disk := activities.NewUnsafeDiskAccessSimulator()
-		config := activities.RandomConfig()
+		//config := activities.RandomConfig()
 		simulator := activities.NewAsyncSimulator(config, disk)
 		return workflows.NewAsyncWorkflow(simulator)
 	}
@@ -59,7 +63,7 @@ func BenchmarkAsyncWorkflowAsyncActivitiesUnsafeIO(b *testing.B) {
 func BenchmarkSequentialWorkflowThreadSafeIO(b *testing.B) {
 	setup := func() workflows.Workflow {
 		disk := activities.NewThreadSafeDiskAccessSimulator()
-		config := activities.RandomConfig()
+		//config := activities.RandomConfig()
 		simulator := activities.NewSequentialSimulator(config, disk)
 		return workflows.NewSequentialWorkflow(simulator)
 	}
@@ -69,7 +73,7 @@ func BenchmarkSequentialWorkflowThreadSafeIO(b *testing.B) {
 func BenchmarkAsyncWorkflowSequentialActivitiesThreadSafeIO(b *testing.B) {
 	setup := func() workflows.Workflow {
 		disk := activities.NewThreadSafeDiskAccessSimulator()
-		config := activities.RandomConfig()
+		//config := activities.RandomConfig()
 		simulator := activities.NewSequentialSimulator(config, disk)
 		return workflows.NewAsyncWorkflow(simulator)
 	}
@@ -79,7 +83,7 @@ func BenchmarkAsyncWorkflowSequentialActivitiesThreadSafeIO(b *testing.B) {
 func BenchmarkAsyncWorkflowAsyncActivitiesThreadSafeIO(b *testing.B) {
 	setup := func() workflows.Workflow {
 		disk := activities.NewThreadSafeDiskAccessSimulator()
-		config := activities.RandomConfig()
+		//config := activities.RandomConfig()
 		simulator := activities.NewAsyncSimulator(config, disk)
 		return workflows.NewAsyncWorkflow(simulator)
 	}
