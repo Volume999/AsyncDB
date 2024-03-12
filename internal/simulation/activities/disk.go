@@ -33,6 +33,6 @@ func (t *ThreadSafeDiskAccessSimulator) SimulateDiskAccess() {
 	util.SimulateSyncIoLoad()
 	t.lock.Lock()
 	// Writing to the log file
-	util.SimulateCpuLoad(5)
+	util.SimulateCpuLoad(10)
 	t.lock.Unlock()
 }
