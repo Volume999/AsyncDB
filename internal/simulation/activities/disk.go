@@ -9,28 +9,34 @@ type DiskAccessSimulator interface {
 	SimulateDiskAccess()
 }
 
-type UnsafeDiskAccessSimulator struct{}
+type UnsafeDiskAccessSimulator struct {
+	accessTimeMs int
+}
 
-func NewUnsafeDiskAccessSimulator() *UnsafeDiskAccessSimulator {
-	return &UnsafeDiskAccessSimulator{}
+func NewUnsafeDiskAccessSimulator(accessTimeMs int) *UnsafeDiskAccessSimulator {
+	return &UnsafeDiskAccessSimulator{
+		accessTimeMs: accessTimeMs,
+	}
 }
 
 func (u *UnsafeDiskAccessSimulator) SimulateDiskAccess() {
-	util.SimulateSyncIoLoad()
+	util.SimulateSyncIoLoad(u.accessTimeMs)
 }
 
 type ThreadSafeDiskAccessSimulator struct {
-	lock *sync.Mutex
+	lock         *sync.Mutex
+	accessTimeMs int
 }
 
-func NewThreadSafeDiskAccessSimulator() *ThreadSafeDiskAccessSimulator {
+func NewThreadSafeDiskAccessSimulator(accessTimeMs int) *ThreadSafeDiskAccessSimulator {
 	return &ThreadSafeDiskAccessSimulator{
-		lock: &sync.Mutex{},
+		lock:         &sync.Mutex{},
+		accessTimeMs: accessTimeMs,
 	}
 }
 
 func (t *ThreadSafeDiskAccessSimulator) SimulateDiskAccess() {
-	util.SimulateSyncIoLoad()
+	util.SimulateSyncIoLoad(t.accessTimeMs)
 	t.lock.Lock()
 	// Writing to the log file
 	util.SimulateCpuLoad(10)

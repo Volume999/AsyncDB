@@ -25,3 +25,4 @@ go.work
 # Ignore benchmark results
 *.tsv
 *.csv
+*.txt
