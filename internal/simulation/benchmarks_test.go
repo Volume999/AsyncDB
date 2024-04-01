@@ -48,37 +48,44 @@ func workflowByType(workflowType string, simulator activities.Simulator) workflo
 func BenchmarkWorkflows(b *testing.B) {
 	disks := []string{"thread-safe"}
 	simulators := []string{"sequential", "async"}
-	workflows := []string{"sequential", "async"}
+	workflowTypes := []string{"sequential", "async"}
 	//parallelisms := []int{1, 10, 100, 1000, 2500, 5000, 10000, 20000, 40000, 80000, 120000}
-	parallelisms := []int{1, 1000, 2500, 5000, 20000, 50000, 120000}
-	//diskAccessTimesMs := []int{2, 5, 10, 20, 40, 100}
+	parallelisms := []int{1, 10, 100, 1000, 2500, 5000, 10000, 20000}
+	//parallelisms := []int{1, 1000, 2500, 5000}
+	limitConnections := []int{-1, 200, 5000, 36000}
+	diskAccessTimesMs := []int{2, 5, 10, 20, 40, 100}
 	//diskAccessTimesMs := []int{70, 100}
-	diskAccessTimesMs := []int{5}
-	for _, diskT := range disks {
-		for _, diskAccessTime := range diskAccessTimesMs {
-			for _, simulatorT := range simulators {
-				for _, workflowT := range workflows {
-					for _, parallelismT := range parallelisms {
-						b.Run("disk="+diskT+"/accessTime(ms)="+strconv.Itoa(diskAccessTime)+"/simulator="+simulatorT+"/workflow="+workflowT+"/parallelism="+strconv.Itoa(parallelismT*runtime.NumCPU()), func(b *testing.B) {
-							b.SetParallelism(parallelismT)
-							disk := diskByType(diskT, diskAccessTime)
-							simulator := simulatorByType(simulatorT, config, disk)
-							workflow := workflowByType(workflowT, simulator)
-							benchStart := time.Now()
-							totalFunctionTime := int64(0)
-							b.ResetTimer()
-							b.RunParallel(func(pb *testing.PB) {
-								for pb.Next() {
-									fnStart := time.Now()
-									workflow.Execute()
-									atomic.AddInt64(&totalFunctionTime, time.Since(fnStart).Milliseconds())
+	//diskAccessTimesMs := []int{5}
+	for _, limitConnectionsT := range limitConnections {
+		for _, diskT := range disks {
+			for _, diskAccessTime := range diskAccessTimesMs {
+				for _, simulatorT := range simulators {
+					for _, workflowT := range workflowTypes {
+						for _, parallelismT := range parallelisms {
+							b.Run("disk="+diskT+"/accessTime(ms)="+strconv.Itoa(diskAccessTime)+"/simulator="+simulatorT+"/workflow="+workflowT+"/parallelism="+strconv.Itoa(parallelismT*runtime.NumCPU())+"/limitConnections="+strconv.Itoa(limitConnectionsT), func(b *testing.B) {
+								b.SetParallelism(parallelismT)
+								disk := diskByType(diskT, diskAccessTime)
+								simulator := simulatorByType(simulatorT, config, disk)
+								workflow := workflowByType(workflowT, simulator)
+								if limitConnectionsT > 0 {
+									workflow = workflows.NewLimitedConnectionsWorkflow(workflow, limitConnectionsT)
 								}
+								benchStart := time.Now()
+								totalFunctionTime := int64(0)
+								b.ResetTimer()
+								b.RunParallel(func(pb *testing.PB) {
+									for pb.Next() {
+										fnStart := time.Now()
+										workflow.Execute()
+										atomic.AddInt64(&totalFunctionTime, time.Since(fnStart).Milliseconds())
+									}
+								})
+								// Avg Exec Time and Time Per Individual Function
+								b.ReportMetric(0, "ns/op")
+								b.ReportMetric(float64(time.Since(benchStart).Milliseconds())/float64(b.N), "ms/op1")
+								b.ReportMetric(float64(totalFunctionTime)/float64(b.N), "ms/op2")
 							})
-							// Avg Exec Time and Time Per Individual Function
-							b.ReportMetric(0, "ns/op")
-							b.ReportMetric(float64(time.Since(benchStart).Milliseconds())/float64(b.N), "ms/op1")
-							b.ReportMetric(float64(totalFunctionTime)/float64(b.N), "ms/op2")
-						})
+						}
 					}
 				}
 			}
