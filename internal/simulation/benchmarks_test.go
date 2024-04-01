@@ -3,6 +3,7 @@ package simulation
 import (
 	"AsyncDB/internal/simulation/activities"
 	"AsyncDB/internal/simulation/workflows"
+	"runtime"
 	"strconv"
 	"sync/atomic"
 	"testing"
@@ -48,14 +49,17 @@ func BenchmarkWorkflows(b *testing.B) {
 	disks := []string{"thread-safe"}
 	simulators := []string{"sequential", "async"}
 	workflows := []string{"sequential", "async"}
-	parallelisms := []int{1, 10, 100, 1000, 5000, 10000, 15000, 20000, 30000, 40000, 60000, 80000, 100000}
-	diskAccessTimesMs := []int{2, 5, 10, 20, 40, 100}
+	//parallelisms := []int{1, 10, 100, 1000, 2500, 5000, 10000, 20000, 40000, 80000, 120000}
+	parallelisms := []int{1, 1000, 2500, 5000, 20000, 50000, 120000}
+	//diskAccessTimesMs := []int{2, 5, 10, 20, 40, 100}
+	//diskAccessTimesMs := []int{70, 100}
+	diskAccessTimesMs := []int{5}
 	for _, diskT := range disks {
 		for _, diskAccessTime := range diskAccessTimesMs {
 			for _, simulatorT := range simulators {
 				for _, workflowT := range workflows {
 					for _, parallelismT := range parallelisms {
-						b.Run("disk="+diskT+"/accessTime(ms)="+strconv.Itoa(diskAccessTime)+"/simulator="+simulatorT+"/workflow="+workflowT+"/parallelism="+strconv.Itoa(parallelismT), func(b *testing.B) {
+						b.Run("disk="+diskT+"/accessTime(ms)="+strconv.Itoa(diskAccessTime)+"/simulator="+simulatorT+"/workflow="+workflowT+"/parallelism="+strconv.Itoa(parallelismT*runtime.NumCPU()), func(b *testing.B) {
 							b.SetParallelism(parallelismT)
 							disk := diskByType(diskT, diskAccessTime)
 							simulator := simulatorByType(simulatorT, config, disk)
