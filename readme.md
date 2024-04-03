@@ -17,3 +17,8 @@
     go test -bench=. -benchmem -benchtime=10s
     ```
     The simulation will run for 10 seconds and output the results.
+4. To run a complete benchmark:
+    ```bash
+    go test -bench=. -benchtime=10s -cpu=8 -timeout=0 -benchmem
+    ```
+    This will run the benchmark for 10 seconds, using 8 CPUs, with no timeout and memory allocation statistics.
