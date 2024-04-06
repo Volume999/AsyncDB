@@ -13,15 +13,15 @@ type WarehouseStore struct {
 }
 
 func (w WarehouseStore) Put(ctx *asyncdb.ConnectionContext, value models.Warehouse) <-chan databases.RequestResult {
-	return w.db.Put(ctx, models.Warehouse{}, models.WarehousePK{Id: value.Id}, value)
+	return w.db.Put(ctx, "Warehouse", models.WarehousePK{Id: value.Id}, value)
 }
 
 func (w WarehouseStore) Get(ctx *asyncdb.ConnectionContext, key models.WarehousePK) <-chan databases.RequestResult {
-	return w.db.Get(ctx, models.Warehouse{}, key)
+	return w.db.Get(ctx, "Warehouse", key)
 }
 
 func (w WarehouseStore) Delete(ctx *asyncdb.ConnectionContext, key models.WarehousePK) <-chan databases.RequestResult {
-	return w.db.Delete(ctx, models.Warehouse{}, key)
+	return w.db.Delete(ctx, "Warehouse", key)
 }
 
 func NewWarehouseStore(l *log.Logger, db *asyncdb.AsyncDB) Store[models.Warehouse, models.WarehousePK] {

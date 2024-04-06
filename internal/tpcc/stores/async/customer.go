@@ -13,15 +13,15 @@ type CustomerStore struct {
 }
 
 func (c *CustomerStore) Put(ctx *asyncdb.ConnectionContext, value models.Customer) <-chan databases.RequestResult {
-	return c.db.Put(ctx, models.Customer{}, models.CustomerPK{ID: value.ID}, value)
+	return c.db.Put(ctx, "Customer", models.CustomerPK{ID: value.ID}, value)
 }
 
 func (c *CustomerStore) Get(ctx *asyncdb.ConnectionContext, key models.CustomerPK) <-chan databases.RequestResult {
-	return c.db.Get(ctx, models.Customer{}, key)
+	return c.db.Get(ctx, "Customer", key)
 }
 
 func (c *CustomerStore) Delete(ctx *asyncdb.ConnectionContext, key models.CustomerPK) <-chan databases.RequestResult {
-	return c.db.Delete(ctx, models.Customer{}, key)
+	return c.db.Delete(ctx, "Customer", key)
 }
 
 func NewCustomerStore(l *log.Logger, db *asyncdb.AsyncDB) Store[models.Customer, models.CustomerPK] {

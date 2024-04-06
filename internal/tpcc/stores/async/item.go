@@ -17,13 +17,13 @@ func NewItemStore(l *log.Logger, db *asyncdb.AsyncDB) Store[models.Item, models.
 }
 
 func (i *ItemStore) Put(ctx *asyncdb.ConnectionContext, value models.Item) <-chan databases.RequestResult {
-	return i.db.Put(ctx, models.Item{}, models.ItemPK{Id: value.Id}, value)
+	return i.db.Put(ctx, "Item", models.ItemPK{Id: value.Id}, value)
 }
 
 func (i *ItemStore) Get(ctx *asyncdb.ConnectionContext, key models.ItemPK) <-chan databases.RequestResult {
-	return i.db.Get(ctx, models.Item{}, key)
+	return i.db.Get(ctx, "Item", key)
 }
 
 func (i *ItemStore) Delete(ctx *asyncdb.ConnectionContext, key models.ItemPK) <-chan databases.RequestResult {
-	return i.db.Delete(ctx, models.Item{}, key)
+	return i.db.Delete(ctx, "Item", key)
 }

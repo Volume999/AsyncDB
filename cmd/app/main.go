@@ -4,6 +4,7 @@ import (
 	"AsyncDB/internal/asyncdb"
 	"AsyncDB/internal/asyncdb/config"
 	"AsyncDB/internal/tpcc/dataloaders"
+	"AsyncDB/internal/tpcc/dataloaders/loaders"
 	"AsyncDB/internal/tpcc/models"
 	"AsyncDB/internal/tpcc/services/order"
 	async2 "AsyncDB/internal/tpcc/stores/async"
@@ -29,38 +30,39 @@ func debug() {
 	tm := asyncdb.NewTransactionManager()
 	lm := asyncdb.NewLockManager()
 	db := asyncdb.NewAsyncDB(tm, lm)
-	_ = db.LoadData(data)
 	ctx, _ := db.Connect()
+	loader := loaders.NewAsyncDBLoader(db, data)
+	loader.Load()
 
 	fmt.Println("DB connected successfully!")
 	fmt.Printf("Connection Context: %# v\n", pretty.Formatter(ctx))
 
 	// Try putting
-	resChan := db.Put(ctx, models.Item{}, models.ItemPK{Id: 1}, models.Item{Name: "Item 1", Price: 1000, Data: "Data 1"})
+	resChan := db.Put(ctx, "Item", models.ItemPK{Id: 1}, models.Item{Name: "Item 1", Price: 1000, Data: "Data 1"})
 	res := <-resChan
 	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
 
 	// Try getting
-	resChan = db.Get(ctx, models.Item{}, models.ItemPK{Id: 1})
-	res = <-resChan
-	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
+	//resChan = db.Get(ctx, "Item", models.ItemPK{Id: 1})
+	//res = <-resChan
+	//fmt.Printf("Result: %# v\n", pretty.Formatter(res))
 
 	// Try deleting
-	resChan = db.Delete(ctx, models.Item{}, models.ItemPK{Id: 1})
+	resChan = db.Delete(ctx, "Item", models.ItemPK{Id: 1})
 	res = <-resChan
 	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
 
 	// Try getting again
-	resChan = db.Get(ctx, models.Item{}, models.ItemPK{Id: 1})
-	res = <-resChan
-	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
+	//resChan = db.Get(ctx, "Item", models.ItemPK{Id: 1})
+	//res = <-resChan
+	//fmt.Printf("Result: %# v\n", pretty.Formatter(res))
 
 	// Customer Store
 	customerStore := async2.NewCustomerStore(nil, db)
 	resChan = customerStore.Put(ctx, models.Customer{ID: 1, DistrictId: 1, WarehouseId: 1})
 	res = <-resChan
 	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
-	resChan = customerStore.Get(ctx, models.CustomerPK{ID: 1})
+	resChan = customerStore.Get(ctx, models.CustomerPK{ID: 1, DistrictId: 1, WarehouseId: 1})
 	res = <-resChan
 	fmt.Printf("Result: %# v\n", pretty.Formatter(res))
 
@@ -84,7 +86,7 @@ func debug() {
 		Items: []order.CommandItems{
 			{
 				ItemId:            2,
-				SupplyWarehouseId: 2,
+				SupplyWarehouseId: 1,
 				Quantity:          2,
 			},
 		},

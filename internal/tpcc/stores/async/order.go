@@ -17,13 +17,13 @@ func NewOrderStore(l *log.Logger, db *asyncdb.AsyncDB) Store[models.Order, model
 }
 
 func (o OrderStore) Put(ctx *asyncdb.ConnectionContext, value models.Order) <-chan databases.RequestResult {
-	return o.db.Put(ctx, models.Order{}, models.OrderPK{Id: value.Id, DistrictId: value.DistrictId, WarehouseId: value.WarehouseId}, value)
+	return o.db.Put(ctx, "Order", models.OrderPK{Id: value.Id, DistrictId: value.DistrictId, WarehouseId: value.WarehouseId}, value)
 }
 
 func (o OrderStore) Get(ctx *asyncdb.ConnectionContext, key models.OrderPK) <-chan databases.RequestResult {
-	return o.db.Get(ctx, models.Order{}, key)
+	return o.db.Get(ctx, "Order", key)
 }
 
 func (o OrderStore) Delete(ctx *asyncdb.ConnectionContext, key models.OrderPK) <-chan databases.RequestResult {
-	return o.db.Delete(ctx, models.Order{}, key)
+	return o.db.Delete(ctx, "Order", key)
 }

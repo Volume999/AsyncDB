@@ -1,7 +1,6 @@
 package asyncdb
 
 import (
-	"AsyncDB/internal/tpcc/models"
 	"errors"
 	"github.com/google/uuid"
 	"sync"
@@ -24,27 +23,19 @@ type Txn struct {
 }
 
 type Action struct {
-	Op       int
-	DataType interface{}
-	Key      interface{}
-	Value    interface{}
+	Op        int
+	tableName string
+	Key       interface{}
+	Value     interface{}
 }
 
-type LogEntry[T any] struct {
+type LogEntry struct {
 	Op    int
-	Value T
+	Value interface{}
 }
 
 type TransactionLog struct {
-	WarehouseLog map[models.WarehousePK]LogEntry[models.Warehouse]
-	StockLog     map[models.StockPK]LogEntry[models.Stock]
-	OrderLog     map[models.OrderPK]LogEntry[models.Order]
-	NewOrderLog  map[models.NewOrderPK]LogEntry[models.NewOrder]
-	DistrictLog  map[models.DistrictPK]LogEntry[models.District]
-	CustomerLog  map[models.CustomerPK]LogEntry[models.Customer]
-	ItemLog      map[models.ItemPK]LogEntry[models.Item]
-	OrderLineLog map[models.OrderLinePK]LogEntry[models.OrderLine]
-	HistoryLog   map[models.HistoryPK]LogEntry[models.History]
+	l map[uint64][]LogEntry
 }
 
 type TransactionManager interface {
@@ -70,15 +61,7 @@ func (t *TransactionManagerImpl) BeginTransaction(ConnId uuid.UUID) (*Txn, error
 	txn := &Txn{
 		txnID: uuid.New(),
 		tLog: &TransactionLog{
-			WarehouseLog: make(map[models.WarehousePK]LogEntry[models.Warehouse]),
-			StockLog:     make(map[models.StockPK]LogEntry[models.Stock]),
-			OrderLog:     make(map[models.OrderPK]LogEntry[models.Order]),
-			NewOrderLog:  make(map[models.NewOrderPK]LogEntry[models.NewOrder]),
-			DistrictLog:  make(map[models.DistrictPK]LogEntry[models.District]),
-			CustomerLog:  make(map[models.CustomerPK]LogEntry[models.Customer]),
-			ItemLog:      make(map[models.ItemPK]LogEntry[models.Item]),
-			OrderLineLog: make(map[models.OrderLinePK]LogEntry[models.OrderLine]),
-			HistoryLog:   make(map[models.HistoryPK]LogEntry[models.History]),
+			l: make(map[uint64][]LogEntry),
 		},
 		tLogMutex: &sync.Mutex{},
 	}
@@ -95,71 +78,8 @@ func (t *TransactionManagerImpl) DeleteLog(ConnId uuid.UUID) error {
 }
 
 func (t *TransactionLog) addAction(a Action) {
-	switch a.DataType.(type) {
-	case models.Warehouse:
-		if a.Value == nil {
-			t.WarehouseLog[a.Key.(models.WarehousePK)] = LogEntry[models.Warehouse]{Op: a.Op}
-			return
-		} else {
-			t.WarehouseLog[a.Key.(models.WarehousePK)] = LogEntry[models.Warehouse]{Op: a.Op, Value: a.Value.(models.Warehouse)}
-		}
-	case models.Stock:
-		if a.Value == nil {
-			t.StockLog[a.Key.(models.StockPK)] = LogEntry[models.Stock]{Op: a.Op}
-			return
-		} else {
-			t.StockLog[a.Key.(models.StockPK)] = LogEntry[models.Stock]{Op: a.Op, Value: a.Value.(models.Stock)}
-		}
-	case models.Order:
-		if a.Value == nil {
-			t.OrderLog[a.Key.(models.OrderPK)] = LogEntry[models.Order]{Op: a.Op}
-			return
-		} else {
-			t.OrderLog[a.Key.(models.OrderPK)] = LogEntry[models.Order]{Op: a.Op, Value: a.Value.(models.Order)}
-		}
-	case models.NewOrder:
-		if a.Value == nil {
-			t.NewOrderLog[a.Key.(models.NewOrderPK)] = LogEntry[models.NewOrder]{Op: a.Op}
-			return
-		} else {
-			t.NewOrderLog[a.Key.(models.NewOrderPK)] = LogEntry[models.NewOrder]{Op: a.Op, Value: a.Value.(models.NewOrder)}
-		}
-	case models.District:
-		if a.Value == nil {
-			t.DistrictLog[a.Key.(models.DistrictPK)] = LogEntry[models.District]{Op: a.Op}
-			return
-		} else {
-			t.DistrictLog[a.Key.(models.DistrictPK)] = LogEntry[models.District]{Op: a.Op, Value: a.Value.(models.District)}
-		}
-	case models.Customer:
-		if a.Value == nil {
-			t.CustomerLog[a.Key.(models.CustomerPK)] = LogEntry[models.Customer]{Op: a.Op}
-			return
-		} else {
-			t.CustomerLog[a.Key.(models.CustomerPK)] = LogEntry[models.Customer]{Op: a.Op, Value: a.Value.(models.Customer)}
-		}
-	case models.Item:
-		if a.Value == nil {
-			t.ItemLog[a.Key.(models.ItemPK)] = LogEntry[models.Item]{Op: a.Op}
-			return
-		} else {
-			t.ItemLog[a.Key.(models.ItemPK)] = LogEntry[models.Item]{Op: a.Op, Value: a.Value.(models.Item)}
-		}
-	case models.OrderLine:
-		if a.Value == nil {
-			t.OrderLineLog[a.Key.(models.OrderLinePK)] = LogEntry[models.OrderLine]{Op: a.Op}
-			return
-		} else {
-			t.OrderLineLog[a.Key.(models.OrderLinePK)] = LogEntry[models.OrderLine]{Op: a.Op, Value: a.Value.(models.OrderLine)}
-		}
-	case models.History:
-		if a.Value == nil {
-			t.HistoryLog[a.Key.(models.HistoryPK)] = LogEntry[models.History]{Op: a.Op}
-			return
-		} else {
-			t.HistoryLog[a.Key.(models.HistoryPK)] = LogEntry[models.History]{Op: a.Op, Value: a.Value.(models.History)}
-		}
-	}
+	hash := HashStringUint64(a.tableName)
+	t.l[hash] = append(t.l[hash], LogEntry{Op: a.Op, Value: a.Value})
 }
 
 func (t *TransactionManagerImpl) GetLog(ConnId uuid.UUID) (*TransactionLog, error) {
