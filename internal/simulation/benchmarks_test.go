@@ -47,21 +47,21 @@ func workflowByType(workflowType string, simulator activities.Simulator) workflo
 
 func BenchmarkWorkflows(b *testing.B) {
 	disks := []string{"thread-safe"}
-	//simulators := []string{"sequential", "async"}
-	simulators := []string{"sequential"}
-	//workflowTypes := []string{"sequential", "async"}
-	workflowTypes := []string{"sequential"}
+	simulators := []string{"sequential", "async"}
+	//simulators := []string{"sequential"}
+	workflowTypes := []string{"sequential", "async"}
+	//workflowTypes := []string{"sequential"}
 	//parallelisms := []int{1, 10, 100, 1000, 2500, 5000, 10000, 20000, 40000, 80000, 120000}
-	//parallelisms := []int{1, 10, 100, 1000, 2500, 5000, 10000, 20000}
-	parallelisms := []int{1, 1000, 10000, 100000}
-	//limitConnections := []int{0, 200, 5000, 36000}
+	parallelisms := []int{1, 10, 100, 1000, 2500, 5000, 10000, 20000}
+	//parallelisms := []int{1, 1000, 10000, 100000}
+	limitConnections := []int{0, 200, 5000, 36000}
 	//limitConnections := []int{0, 200}
-	limitConnections := []int{0}
-	//lockCount := []int{0, 10000}
-	lockCount := []int{100}
-	//diskAccessTimesMs := []int{2, 5, 10, 20, 40, 100}
+	//limitConnections := []int{0}
+	lockCount := []int{0, 100, 10000}
+	//lockCount := []int{100}
+	diskAccessTimesMs := []int{2, 10, 40, 100}
 	//diskAccessTimesMs := []int{70, 100}
-	diskAccessTimesMs := []int{15}
+	//diskAccessTimesMs := []int{15}
 	for _, limitConnectionsT := range limitConnections {
 		for _, lockCountT := range lockCount {
 			for _, diskT := range disks {
