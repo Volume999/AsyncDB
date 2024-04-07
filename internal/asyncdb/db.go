@@ -60,6 +60,14 @@ func (p *AsyncDB) CreateTable(ctx *ConnectionContext, table Table) error {
 	return nil
 }
 
+func (p *AsyncDB) ListTables(ctx *ConnectionContext) []string {
+	tables := make([]string, 0, len(p.data))
+	for _, table := range p.data {
+		tables = append(tables, table.Name())
+	}
+	return tables
+}
+
 func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{}, value interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
