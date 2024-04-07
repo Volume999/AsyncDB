@@ -39,11 +39,11 @@ func (t *GenericTable[K, V]) Name() string {
 func (t *GenericTable[K, V]) Get(key interface{}) (value interface{}, err error) {
 	keyTyped, ok := key.(K)
 	if !ok {
-		return nil, fmt.Errorf("%w: %T", ErrTypeMismatch, key)
+		return nil, fmt.Errorf("%w: expected key type - %T, got - %T", ErrTypeMismatch, *new(K), key)
 	}
 	v, ok := t.data[keyTyped]
 	if !ok {
-		return *new(V), ErrKeyNotFound
+		return *new(V), fmt.Errorf("%w - %v", ErrKeyNotFound, key)
 	}
 	return v, nil
 }
