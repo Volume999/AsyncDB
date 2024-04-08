@@ -21,9 +21,6 @@ type ConnectionContext struct {
 	Mode int // Active, Committing, Aborting
 }
 
-//type ValueType interface{}
-//type KeyType interface{}
-
 var ErrTableExists = errors.New("table already exists")
 var ErrTableNotFound = errors.New("table not found")
 
