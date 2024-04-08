@@ -31,6 +31,7 @@ type Action struct {
 
 type LogEntry struct {
 	Op    int
+	Key   interface{}
 	Value interface{}
 }
 
@@ -79,7 +80,7 @@ func (t *TransactionManagerImpl) DeleteLog(ConnId uuid.UUID) error {
 
 func (t *TransactionLog) addAction(a Action) {
 	hash := HashStringUint64(a.tableName)
-	t.l[hash] = append(t.l[hash], LogEntry{Op: a.Op, Value: a.Value})
+	t.l[hash] = append(t.l[hash], LogEntry{Op: a.Op, Value: a.Value, Key: a.Key})
 }
 
 func (t *TransactionManagerImpl) GetLog(ConnId uuid.UUID) (*TransactionLog, error) {
