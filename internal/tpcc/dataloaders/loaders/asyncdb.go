@@ -16,16 +16,25 @@ func NewAsyncDBLoader(db *asyncdb.AsyncDB, data *dataloaders.GeneratedData) *Asy
 }
 
 func (a *AsyncDBLoader) Load() {
+	warehouses, _ := asyncdb.NewGenericTable[models.WarehousePK, models.Warehouse]("Warehouse")
+	districts, _ := asyncdb.NewGenericTable[models.DistrictPK, models.District]("District")
+	customers, _ := asyncdb.NewGenericTable[models.CustomerPK, models.Customer]("Customer")
+	history, _ := asyncdb.NewGenericTable[models.HistoryPK, models.History]("History")
+	newOrders, _ := asyncdb.NewGenericTable[models.NewOrderPK, models.NewOrder]("NewOrder")
+	orders, _ := asyncdb.NewGenericTable[models.OrderPK, models.Order]("Order")
+	orderLines, _ := asyncdb.NewGenericTable[models.OrderLinePK, models.OrderLine]("OrderLine")
+	items, _ := asyncdb.NewGenericTable[models.ItemPK, models.Item]("Item")
+	stocks, _ := asyncdb.NewGenericTable[models.StockPK, models.Stock]("Stock")
 	tables := []asyncdb.Table{
-		asyncdb.NewGenericTable[models.WarehousePK, models.Warehouse]("Warehouse"),
-		asyncdb.NewGenericTable[models.DistrictPK, models.District]("District"),
-		asyncdb.NewGenericTable[models.CustomerPK, models.Customer]("Customer"),
-		asyncdb.NewGenericTable[models.HistoryPK, models.History]("History"),
-		asyncdb.NewGenericTable[models.NewOrderPK, models.NewOrder]("NewOrder"),
-		asyncdb.NewGenericTable[models.OrderPK, models.Order]("Order"),
-		asyncdb.NewGenericTable[models.OrderLinePK, models.OrderLine]("OrderLine"),
-		asyncdb.NewGenericTable[models.ItemPK, models.Item]("Item"),
-		asyncdb.NewGenericTable[models.StockPK, models.Stock]("Stock"),
+		warehouses,
+		districts,
+		customers,
+		history,
+		newOrders,
+		orders,
+		orderLines,
+		items,
+		stocks,
 	}
 	ctx, _ := a.db.Connect()
 	for _, table := range tables {

@@ -5,17 +5,26 @@ import (
 	"testing"
 )
 
+func TestAsyncDB_NewGenericTable_Should_Fail_When_Empty_Name(t *testing.T) {
+	tableName := ""
+	_, err := NewGenericTable[int, int](tableName)
+	assert.EqualError(t, err, "table name cannot be empty")
+}
+
 func TestGenericTable_Name(t *testing.T) {
 	tableName := "test"
-	table := NewGenericTable[int, int](tableName)
+	table, _ := NewGenericTable[int, int](tableName)
 	got := table.Name()
 	assert.Equal(t, tableName, got)
 }
 
 func FuzzGenericTable_Hash_NoCollisions(f *testing.F) {
 	f.Fuzz(func(t *testing.T, name1 string, name2 string) {
-		t1 := NewGenericTable[int, int](name1)
-		t2 := NewGenericTable[int, int](name2)
+		if name1 == "" || name2 == "" {
+			t.Skip()
+		}
+		t1, _ := NewGenericTable[int, int](name1)
+		t2, _ := NewGenericTable[int, int](name2)
 		if t1.Hash() == t2.Hash() {
 			assert.Equal(t, name1, name2)
 		} else {
@@ -52,7 +61,7 @@ func TestGenericTable_Put(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			table := NewGenericTable[int, int]("test")
+			table, _ := NewGenericTable[int, int]("test")
 			err := table.Put(c.key, c.value)
 			if c.errorWant != "" {
 				assert.EqualError(t, err, c.errorWant)
@@ -99,7 +108,7 @@ func TestGenericTable_Get(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			table := NewGenericTable[int, int]("test")
+			table, _ := NewGenericTable[int, int]("test")
 			table.Put(c.putKey, c.putValue)
 			val, err := table.Get(c.getKey)
 			if c.errorWant != "" {
