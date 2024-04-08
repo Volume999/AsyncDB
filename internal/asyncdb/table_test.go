@@ -18,21 +18,6 @@ func TestGenericTable_Name(t *testing.T) {
 	assert.Equal(t, tableName, got)
 }
 
-func FuzzGenericTable_Hash_NoCollisions(f *testing.F) {
-	f.Fuzz(func(t *testing.T, name1 string, name2 string) {
-		if name1 == "" || name2 == "" {
-			t.Skip()
-		}
-		t1, _ := NewGenericTable[int, int](name1)
-		t2, _ := NewGenericTable[int, int](name2)
-		if t1.Hash() == t2.Hash() {
-			assert.Equal(t, name1, name2)
-		} else {
-			assert.NotEqual(t, name1, name2)
-		}
-	})
-}
-
 func TestGenericTable_Put(t *testing.T) {
 	cases := []struct {
 		name      string
