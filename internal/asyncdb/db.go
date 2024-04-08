@@ -51,7 +51,7 @@ func (p *AsyncDB) Disconnect(context *ConnectionContext) error {
 func (p *AsyncDB) CreateTable(ctx *ConnectionContext, table Table) error {
 	hash := table.Hash()
 	if _, ok := p.data[hash]; ok {
-		return ErrTableExists
+		return fmt.Errorf("%w - %s", ErrTableExists, table.Name())
 	}
 	p.data[hash] = table
 	return nil
