@@ -15,6 +15,7 @@ type Table interface {
 	Get(key interface{}) (value interface{}, err error)
 	Put(key interface{}, value interface{}) error
 	Delete(key interface{}) error
+	ValidateTypes(key interface{}, value interface{}) error
 }
 
 type GenericTable[K comparable, V any] struct {
@@ -71,6 +72,18 @@ func (t *GenericTable[K, V]) Delete(key interface{}) error {
 		return fmt.Errorf("%w: %T", ErrTypeMismatch, key)
 	}
 	delete(t.data, keyTyped)
+	return nil
+}
+
+func (t *GenericTable[K, V]) ValidateTypes(key interface{}, value interface{}) error {
+	_, keyOk := key.(K)
+	_, valueOk := value.(V)
+	if !keyOk {
+		return fmt.Errorf("%w: expected key type - %T, got - %T", ErrTypeMismatch, *new(K), key)
+	}
+	if !valueOk {
+		return fmt.Errorf("%w: expected value type - %T, got - %T", ErrTypeMismatch, *new(V), value)
+	}
 	return nil
 }
 

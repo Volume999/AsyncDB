@@ -68,6 +68,23 @@ func (p *AsyncDB) ListTables(ctx *ConnectionContext) []string {
 func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{}, value interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
+		hash := HashStringUint64(tableName)
+		table, ok := p.data[hash]
+		if !ok {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  fmt.Errorf("%w - %s", ErrTableNotFound, tableName),
+			}
+			return
+		}
+		err := table.ValidateTypes(key, value)
+		if err != nil {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  err,
+			}
+			return
+		}
 		implTransaction := ctx.Txn == nil
 		if implTransaction {
 			txn, err := p.tManager.BeginTransaction(ctx.ID)
@@ -89,7 +106,6 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 			Value:     value,
 		})
 		txn.tLogMutex.Unlock()
-		var err error
 		if implTransaction {
 			err = p.CommitTransaction(ctx)
 		}
@@ -197,8 +213,28 @@ func (p *AsyncDB) RollbackTransaction(ctx *ConnectionContext) error {
 }
 
 // TODO: Implement this
-func (p *AsyncDB) applyLogs(log *TransactionLog) {
-
+func (p *AsyncDB) applyLogs(log *TransactionLog) error {
+	for hash, actions := range log.l {
+		table, ok := p.data[hash]
+		if !ok {
+			return fmt.Errorf("%w - %d", ErrTableNotFound, hash)
+		}
+		for _, action := range actions {
+			switch action.Op {
+			case LPut:
+				err := table.Put(action.Key, action.Value)
+				if err != nil {
+					return err
+				}
+			case LDelete:
+				err := table.Delete(action.Key)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (p *AsyncDB) putValue(ctx *ConnectionContext, tableName string, key interface{}, value interface{}) <-chan databases.RequestResult {
