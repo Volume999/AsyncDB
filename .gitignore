@@ -26,3 +26,6 @@ go.work
 *.tsv
 *.csv
 *.txt
+
+# Ignore fuzz test results
+testdata
