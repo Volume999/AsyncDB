@@ -94,7 +94,7 @@ func TestGenericTable_Get(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			table, _ := NewGenericTable[int, int]("test")
-			table.Put(c.putKey, c.putValue)
+			_ = table.Put(c.putKey, c.putValue)
 			val, err := table.Get(c.getKey)
 			if c.errorWant != "" {
 				assert.EqualError(t, err, c.errorWant)
