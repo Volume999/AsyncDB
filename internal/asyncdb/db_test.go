@@ -179,6 +179,152 @@ func (s *DMLSuite) TestAsyncDB_Put_Should_Update_Value() {
 
 }
 
+func (s *DMLSuite) TestAsyncDB_Get() {
+	cases := []struct {
+		name         string
+		putTableName string
+		putKey       interface{}
+		putValue     interface{}
+		getTableName string
+		getKey       interface{}
+		errorWant    string
+	}{
+		{
+			name:         "Normal Get - Should return same value",
+			putTableName: "test",
+			putKey:       1,
+			putValue:     2,
+			getTableName: "test",
+			getKey:       1,
+			errorWant:    "",
+		},
+		{
+			name:         "Get from non-existent table - Should Error",
+			putTableName: "test",
+			putKey:       1,
+			putValue:     2,
+			getTableName: "test3",
+			getKey:       1,
+			errorWant:    "table not found - test3",
+		},
+		{
+			name:         "Get non-existent key - Should Error",
+			putTableName: "test",
+			putKey:       1,
+			putValue:     2,
+			getTableName: "test",
+			getKey:       2,
+			errorWant:    "key not found - 2",
+		},
+		{
+			name:         "Get from table with different key type - Should Error",
+			putTableName: "test",
+			putKey:       1,
+			putValue:     2,
+			getTableName: "test",
+			getKey:       "1",
+			errorWant:    "type mismatch: expected key type - int, got - string",
+		},
+	}
+	for _, c := range cases {
+		s.Run(c.name, func() {
+			db := s.db
+			ctx := s.ctx
+			<-db.Put(ctx, c.putTableName, c.putKey, c.putValue)
+			ch := db.Get(ctx, c.getTableName, c.getKey)
+			s.Eventually(func() bool {
+				select {
+				case res := <-ch:
+					if c.errorWant == "" {
+						s.Nil(res.Err)
+						s.Equal(c.putValue, res.Data)
+					} else {
+						s.EqualError(res.Err, c.errorWant)
+					}
+					return true
+				}
+			}, time.Second, 100*time.Millisecond)
+		})
+	}
+}
+
+func (s *DMLSuite) TestAsyncDB_Delete() {
+	cases := []struct {
+		name            string
+		putTableName    string
+		putKey          interface{}
+		putValue        interface{}
+		deleteTableName string
+		deleteKey       interface{}
+		getErrorWant    string
+		errorWant       string
+	}{
+		{
+			name:            "Normal Delete - Get should return error",
+			putTableName:    "test",
+			putKey:          1,
+			putValue:        2,
+			deleteTableName: "test",
+			deleteKey:       1,
+			getErrorWant:    "key not found - 1",
+			errorWant:       "",
+		},
+		{
+			name:            "Delete from non-existent table - Should Error",
+			putTableName:    "test",
+			putKey:          1,
+			putValue:        2,
+			deleteTableName: "test3",
+			deleteKey:       1,
+			getErrorWant:    "",
+			errorWant:       "table not found - test3",
+		},
+		{
+			name:            "Delete non-existent key - Should Error",
+			putTableName:    "test",
+			putKey:          1,
+			putValue:        2,
+			deleteTableName: "test",
+			deleteKey:       2,
+			getErrorWant:    "",
+			errorWant:       "key not found - 2",
+		},
+		{
+			name:            "Delete from table with different key type - Should Error",
+			putTableName:    "test",
+			putKey:          1,
+			putValue:        2,
+			deleteTableName: "test",
+			deleteKey:       "1",
+			getErrorWant:    "",
+			errorWant:       "type mismatch: expected key type - int, got - string",
+		},
+	}
+	for _, c := range cases {
+		s.Run(c.name, func() {
+			db := s.db
+			ctx := s.ctx
+			<-db.Put(ctx, c.putTableName, c.putKey, c.putValue)
+			ch := db.Delete(ctx, c.deleteTableName, c.deleteKey)
+			s.Eventually(func() bool {
+				select {
+				case res := <-ch:
+					if c.errorWant == "" {
+						s.Nil(res.Err)
+					} else {
+						s.EqualError(res.Err, c.errorWant)
+					}
+					return true
+				}
+			}, time.Second, 100*time.Millisecond)
+			if c.getErrorWant != "" {
+				res := <-db.Get(ctx, c.deleteTableName, c.deleteKey)
+				s.EqualError(res.Err, c.getErrorWant)
+			}
+		})
+	}
+}
+
 func TestDDLSuite(t *testing.T) {
 	suite.Run(t, new(DDLSuite))
 }

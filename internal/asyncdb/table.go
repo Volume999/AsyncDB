@@ -77,12 +77,14 @@ func (t *GenericTable[K, V]) Delete(key interface{}) error {
 
 func (t *GenericTable[K, V]) ValidateTypes(key interface{}, value interface{}) error {
 	_, keyOk := key.(K)
-	_, valueOk := value.(V)
 	if !keyOk {
 		return fmt.Errorf("%w: expected key type - %T, got - %T", ErrTypeMismatch, *new(K), key)
 	}
-	if !valueOk {
-		return fmt.Errorf("%w: expected value type - %T, got - %T", ErrTypeMismatch, *new(V), value)
+	if value != nil {
+		_, valueOk := value.(V)
+		if !valueOk {
+			return fmt.Errorf("%w: expected value type - %T, got - %T", ErrTypeMismatch, *new(V), value)
+		}
 	}
 	return nil
 }

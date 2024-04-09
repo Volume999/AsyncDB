@@ -148,6 +148,7 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
+		var err error
 		implTransaction := ctx.Txn == nil
 		if implTransaction {
 			txn, err := p.tManager.BeginTransaction(ctx.ID)
@@ -161,7 +162,19 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 			ctx.Txn = txn
 		}
 		txn := ctx.Txn
+
+		res := <-p.getValue(ctx, tableName, key)
+		if res.Err != nil {
+			err = p.RollbackTransaction(ctx)
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  res.Err,
+			}
+			return
+		}
+
 		txn.tLogMutex.Lock()
+
 		txn.tLog.addAction(Action{
 			Op:        LDelete,
 			tableName: tableName,
@@ -169,7 +182,6 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 			Value:     nil,
 		})
 		txn.tLogMutex.Unlock()
-		var err error
 		if implTransaction {
 			err = p.CommitTransaction(ctx)
 		}
@@ -245,7 +257,7 @@ func (p *AsyncDB) putValue(_ *ConnectionContext, tableName string, key interface
 		if !ok {
 			resultChan <- databases.RequestResult{
 				Data: nil,
-				Err:  fmt.Errorf("%w: %s", ErrTableNotFound, tableName),
+				Err:  fmt.Errorf("%w - %s", ErrTableNotFound, tableName),
 			}
 			return
 		}
@@ -270,7 +282,7 @@ func (p *AsyncDB) getValue(_ *ConnectionContext, tableName string, key interface
 		if !ok {
 			resultChan <- databases.RequestResult{
 				Data: nil,
-				Err:  fmt.Errorf("%w: %s", ErrTableNotFound, tableName),
+				Err:  fmt.Errorf("%w - %s", ErrTableNotFound, tableName),
 			}
 			return
 		}
