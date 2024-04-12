@@ -30,7 +30,7 @@ type AsyncDB struct {
 	lManager LockManager
 }
 
-func NewAsyncDB(tManager *TransactionManagerImpl, lManager *LockManagerImpl) *AsyncDB {
+func NewAsyncDB(tManager TransactionManager, lManager LockManager) *AsyncDB {
 	return &AsyncDB{tManager: tManager, lManager: lManager, data: make(map[uint64]Table)}
 }
 
