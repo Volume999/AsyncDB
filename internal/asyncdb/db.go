@@ -44,7 +44,7 @@ func (p *AsyncDB) Disconnect(context *ConnectionContext) error {
 	if context.Txn != nil {
 		rollbackErr = p.RollbackTransaction(context)
 	}
-	lockReleaseErr = p.lManager.ReleaseLocks(context.ID)
+	lockReleaseErr = p.lManager.ReleaseLocks(TransactId(context.ID))
 	return errors.Join(rollbackErr, lockReleaseErr)
 }
 
