@@ -68,6 +68,42 @@ func (s *DDLSuite) TestAsyncDB_ListTables() {
 	s.Contains(tables, "test2")
 }
 
+func (s *DDLSuite) TestAsyncDB_DeleteTable() {
+	cases := []struct {
+		name            string
+		tableName       string
+		deleteTableName string
+		errorWant       string
+	}{
+		{
+			name:            "Normal Delete - Should not Error",
+			tableName:       "test",
+			deleteTableName: "test",
+			errorWant:       "",
+		},
+		{
+			name:            "Delete non-existent table - Should Error",
+			tableName:       "test",
+			deleteTableName: "test2",
+			errorWant:       "table not found - test2",
+		},
+	}
+	for _, c := range cases {
+		s.Run(c.name, func() {
+			db := s.db
+			ctx := s.ctx
+			table, _ := NewGenericTable[int, int](c.tableName)
+			_ = db.CreateTable(ctx, table)
+			err := db.DropTable(ctx, c.deleteTableName)
+			if c.errorWant == "" {
+				s.Nil(err)
+			} else {
+				s.EqualError(err, c.errorWant)
+			}
+		})
+	}
+}
+
 type DMLSuite struct {
 	suite.Suite
 	db  *AsyncDB

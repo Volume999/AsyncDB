@@ -65,6 +65,16 @@ func (p *AsyncDB) ListTables(_ *ConnectionContext) []string {
 	return tables
 }
 
+func (p *AsyncDB) DropTable(_ *ConnectionContext, tableName string) error {
+	hash := HashStringUint64(tableName)
+	if _, ok := p.data[hash]; !ok {
+		return fmt.Errorf("%w - %s", ErrTableNotFound, tableName)
+	}
+	// TODO: Here need to check if any transaction is using this table, Or, alternatively, we can check that on commit
+	delete(p.data, hash)
+	return nil
+}
+
 func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{}, value interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
@@ -162,7 +172,6 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 			ctx.Txn = txn
 		}
 		txn := ctx.Txn
-
 		res := <-p.getValue(ctx, tableName, key)
 		if res.Err != nil {
 			err = p.RollbackTransaction(ctx)
@@ -172,9 +181,7 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 			}
 			return
 		}
-
 		txn.tLogMutex.Lock()
-
 		txn.tLog.addAction(Action{
 			Op:        LDelete,
 			tableName: tableName,
@@ -249,27 +256,6 @@ func (p *AsyncDB) applyLogs(log *TransactionLog) error {
 	return nil
 }
 
-func (p *AsyncDB) putValue(_ *ConnectionContext, tableName string, key interface{}, value interface{}) <-chan databases.RequestResult {
-	resultChan := make(chan databases.RequestResult)
-	go func() {
-		hash := HashStringUint64(tableName)
-		table, ok := p.data[hash]
-		if !ok {
-			resultChan <- databases.RequestResult{
-				Data: nil,
-				Err:  fmt.Errorf("%w - %s", ErrTableNotFound, tableName),
-			}
-			return
-		}
-		err := table.Put(key, value)
-		resultChan <- databases.RequestResult{
-			Data: nil,
-			Err:  err,
-		}
-	}()
-	return resultChan
-}
-
 func (p *AsyncDB) getValue(_ *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
@@ -289,27 +275,6 @@ func (p *AsyncDB) getValue(_ *ConnectionContext, tableName string, key interface
 		value, err := table.Get(key)
 		resultChan <- databases.RequestResult{
 			Data: value,
-			Err:  err,
-		}
-	}()
-	return resultChan
-}
-
-func (p *AsyncDB) deleteValue(_ *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
-	resultChan := make(chan databases.RequestResult)
-	go func() {
-		hash := HashStringUint64(tableName)
-		table, ok := p.data[hash]
-		if !ok {
-			resultChan <- databases.RequestResult{
-				Data: nil,
-				Err:  fmt.Errorf("%w: %s", ErrTableNotFound, tableName),
-			}
-			return
-		}
-		err := table.Delete(key)
-		resultChan <- databases.RequestResult{
-			Data: nil,
 			Err:  err,
 		}
 	}()
