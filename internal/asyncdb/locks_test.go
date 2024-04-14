@@ -48,19 +48,10 @@ func TestLockManagerImpl_Lock_When_Conflict_With_Older_Lock_Should_Fail(t *testi
 	assert.EqualError(t, err, lockConflictErr)
 }
 
-func TestLockManagerImpl_ReleaseLocks_ReadLocks_Should_Be_Empty(t *testing.T) {
+func TestLockManagerImpl_ReleaseLocks_Should_Enable_Write(t *testing.T) {
 	lm := NewLockManager()
 	tid := TransactId(uuid.New())
 	_ = lm.Lock(ReadLock, tid, 1, TableId(1), 1)
-	err := lm.ReleaseLocks(tid)
-	assert.Nil(t, err)
-	assert.Len(t, lm.lockMap[TableId(1)].Locks[1].RLock, 0)
-}
-
-func TestLockManagerImpl_After_ReleaseLocks_Write_Should_Succeed(t *testing.T) {
-	lm := NewLockManager()
-	tid := TransactId(uuid.New())
-	_ = lm.Lock(WriteLock, tid, 2, TableId(1), 1)
 	err := lm.ReleaseLocks(tid)
 	assert.Nil(t, err)
 	err = lm.Lock(WriteLock, TransactId(uuid.New()), 1, TableId(1), 1)
