@@ -57,26 +57,35 @@ func TestLockManagerImpl_ReleaseLocks_ReadLocks_Should_Be_Empty(t *testing.T) {
 	assert.Len(t, lm.lockMap[TableId(1)].Locks[1].RLock, 0)
 }
 
-func TestLockManagerImpl_ReleaseLocks_WriteLocks_Should_Be_Empty(t *testing.T) {
+func TestLockManagerImpl_After_ReleaseLocks_Write_Should_Succeed(t *testing.T) {
 	lm := NewLockManager()
 	tid := TransactId(uuid.New())
-	_ = lm.Lock(WriteLock, tid, 1, TableId(1), 1)
+	_ = lm.Lock(WriteLock, tid, 2, TableId(1), 1)
 	err := lm.ReleaseLocks(tid)
 	assert.Nil(t, err)
-	assert.Equal(t, TransactId(uuid.Nil), lm.lockMap[TableId(1)].Locks[1].WLock.tId)
+	err = lm.Lock(WriteLock, TransactId(uuid.New()), 1, TableId(1), 1)
+	assert.Nil(t, err)
 }
 
 func TestLockManagerImpl_ReleaseLocks_Waiters_Should_Be_Released(t *testing.T) {
 	lm := NewLockManager()
 	tid := TransactId(uuid.New())
-	_ = lm.Lock(WriteLock, tid, 1, TableId(1), 1)
+	tid2 := TransactId(uuid.New())
+	_ = lm.Lock(WriteLock, tid2, 1, TableId(1), 1)
+	waiterErr := make(chan error)
 	go func() {
-		err := lm.Lock(WriteLock, TransactId(uuid.New()), 2, TableId(1), 1)
-		assert.EqualError(t, err, lockConflictErr)
+		err := lm.Lock(WriteLock, tid, 2, TableId(1), 1)
+		waiterErr <- err
 	}()
 	time.Sleep(10 * time.Millisecond)
-	go func() {
-		err := lm.ReleaseLocks(tid)
-		assert.Nil(t, err)
-	}()
+	_ = lm.ReleaseLocks(tid)
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-waiterErr:
+			assert.EqualError(t, err, locksReleasedErr)
+			return true
+		default:
+			return false
+		}
+	}, 10*time.Millisecond, 1*time.Millisecond)
 }

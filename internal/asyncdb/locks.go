@@ -102,9 +102,9 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 		}
 		lm.lockMap[tableId].m.Unlock()
 	}
+	lm.AddLockInfo(tid, tableId, LockInfo{key: key, lockType: lockType})
 	ol := lm.lockMap[tableId].Locks[key]
 	ol.m.Lock()
-	defer ol.m.Unlock()
 	wl := ol.WLock
 	rl := ol.RLock
 	readTids := make(map[TransactId]bool)
@@ -116,11 +116,12 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 	res := make(chan error)
 	if lockType == ReadLock {
 		if _, ok := readTids[tid]; ok {
+			ol.m.Unlock()
 			return nil
 		}
 		if wl.tId == TransactId(uuid.Nil) {
 			ol.RLock = append(rl, &TransactInfo{tId: tid, ts: ts})
-			lm.AddLockInfo(tid, tableId, LockInfo{key: key, lockType: ReadLock})
+			ol.m.Unlock()
 			return nil
 		}
 		if wl.ts < ts {
@@ -129,18 +130,20 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 				LockType: ReadLock,
 				Chan:     res,
 			})
+			ol.m.Unlock()
 			return <-res
 		}
+		ol.m.Unlock()
 		return ErrLockConflict
 	} else if lockType == WriteLock {
 		if wl.tId == TransactId(uuid.Nil) {
 			if len(rl) == 0 || (len(rl) == 1 && rl[0].tId == tid) {
-				wl.tId = tid
-				wl.ts = ts
-				lm.AddLockInfo(tid, tableId, LockInfo{key: key, lockType: WriteLock})
+				ol.WLock = &TransactInfo{tId: tid, ts: ts}
+				ol.m.Unlock()
 				return nil
 			}
 			if readMinTs >= ts {
+				ol.m.Unlock()
 				return ErrLockConflict
 			}
 			ol.Queue = append(ol.Queue, &LockWaiter{
@@ -148,12 +151,15 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 				LockType: WriteLock,
 				Chan:     res,
 			})
+			ol.m.Unlock()
 			return <-res
 		}
 		if wl.tId == tid {
+			ol.m.Unlock()
 			return nil
 		}
 		if wl.ts >= ts {
+			ol.m.Unlock()
 			return ErrLockConflict
 		}
 		ol.Queue = append(ol.Queue, &LockWaiter{
@@ -161,6 +167,7 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 			LockType: WriteLock,
 			Chan:     res,
 		})
+		ol.m.Unlock()
 		return <-res
 	} else {
 		return ErrInvalidLockType
@@ -169,11 +176,11 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 
 func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 	lm.m.Lock()
-	defer lm.m.Unlock()
 	if _, ok := lm.transactMap[tid]; !ok {
 		return nil
 	}
 	transactLocks := lm.transactMap[tid]
+	lm.m.Unlock()
 	for tableId, locks := range transactLocks {
 		if _, ok := lm.lockMap[tableId]; !ok {
 			continue
@@ -201,7 +208,8 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 			}
 			for i, waiter := range ol.Queue {
 				if waiter.TInfo.tId == tid {
-					slices.Delete(ol.Queue, i, i+1)
+					waiter.Chan <- ErrLocksReleased
+					ol.Queue = slices.Delete(ol.Queue, i, i+1)
 				}
 			}
 
@@ -212,7 +220,6 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 					if wlock.tId == TransactId(uuid.Nil) {
 						ol.RLock = append(ol.RLock, waiter.TInfo)
 						ol.Queue = ol.Queue[1:]
-						lm.AddLockInfo(waiter.TInfo.tId, tableId, LockInfo{key: lock.key, lockType: ReadLock})
 						waiter.Chan <- nil
 					} else if wlock.ts < waiter.TInfo.ts {
 						ol.Queue = ol.Queue[1:]
@@ -229,7 +236,6 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 						if len(rlock) == 0 || (len(rlock) == 1 && rlock[0].tId == waiter.TInfo.tId) {
 							ol.WLock = waiter.TInfo
 							ol.Queue = ol.Queue[1:]
-							lm.AddLockInfo(waiter.TInfo.tId, tableId, LockInfo{key: lock.key, lockType: WriteLock})
 							waiter.Chan <- nil
 						} else if waiter.TInfo.ts < minReadTs {
 							ol.Queue = ol.Queue[1:]
@@ -238,7 +244,7 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 					} else {
 						if wlock.ts < waiter.TInfo.ts {
 							ol.Queue = ol.Queue[1:]
-							waiter.Chan <- ErrLocksReleased
+							waiter.Chan <- ErrLockConflict
 						}
 					}
 				}
