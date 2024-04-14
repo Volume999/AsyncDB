@@ -3,6 +3,7 @@ package asyncdb
 import (
 	"errors"
 	"github.com/google/uuid"
+	"math"
 	"sync"
 )
 
@@ -12,6 +13,7 @@ const (
 )
 
 var ErrLockConflict = errors.New("lock conflict")
+var ErrInvalidLockType = errors.New("invalid lock type")
 
 type ConnId uuid.UUID
 type TransactId uuid.UUID
@@ -40,6 +42,7 @@ type ObjectLock struct {
 	WLock LockInfo
 	RLock []LockInfo
 	Queue []LockWaiter
+	m     *sync.Mutex
 }
 
 type LockTable struct {
@@ -62,19 +65,69 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 		}
 		lm.m.Unlock()
 	}
-	res := make(chan error)
-	go func() {
+	if _, ok := lm.lockMap[tableId].Locks[key]; !ok {
+		lm.lockMap[tableId].m.Lock()
 		if _, ok := lm.lockMap[tableId].Locks[key]; !ok {
-			lm.lockMap[tableId].m.Lock()
-			if _, ok := lm.lockMap[tableId].Locks[key]; !ok {
-				lm.lockMap[tableId].Locks[key] = ObjectLock{}
+			lm.lockMap[tableId].Locks[key] = ObjectLock{}
+		}
+		lm.lockMap[tableId].m.Unlock()
+	}
+	ol := lm.lockMap[tableId].Locks[key]
+	ol.m.Lock()
+	defer ol.m.Unlock()
+	wl := ol.WLock
+	rl := ol.RLock
+	readTids := make(map[TransactId]bool)
+	var readMinTs int64 = math.MaxInt64
+	for _, r := range rl {
+		readTids[r.tId] = true
+		readMinTs = min(readMinTs, r.ts)
+	}
+	res := make(chan error)
+	if lockType == ReadLock {
+		if _, ok := readTids[tid]; ok {
+			return nil
+		}
+		if wl.tId == TransactId(uuid.Nil) {
+			rl = append(rl, LockInfo{tId: tid, ts: ts})
+			return nil
+		}
+		if wl.ts < ts {
+			ol.Queue = append(ol.Queue, LockWaiter{
+				Info: LockInfo{tId: tid, ts: ts},
+				Chan: res,
+			})
+			return <-res
+		}
+		return ErrLockConflict
+	} else if lockType == WriteLock {
+		if wl.tId == TransactId(uuid.Nil) {
+			if len(rl) == 0 || (len(rl) == 1 && rl[0].tId == tid) {
+				wl = LockInfo{tId: tid, ts: ts}
+				return nil
 			}
-			lm.lockMap[tableId].m.Unlock()
+			if readMinTs >= ts {
+				return ErrLockConflict
+			}
+			ol.Queue = append(ol.Queue, LockWaiter{
+				Info: LockInfo{tId: tid, ts: ts},
+				Chan: res,
+			})
 		}
-		if lockType == ReadLock {
+		if wl.tId == tid {
+			return nil
 		}
-	}()
-	return <-res
+		if wl.ts >= ts {
+			return ErrLockConflict
+		}
+		ol.Queue = append(ol.Queue, LockWaiter{
+			Info: LockInfo{tId: tid, ts: ts},
+			Chan: res,
+		})
+	} else {
+		return ErrInvalidLockType
+	}
+	panic("unreachable")
 }
 
 func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
@@ -82,7 +135,8 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 }
 
 func NewLockManager() *LockManagerImpl {
-	return &LockManagerImpl{
+	lm := &LockManagerImpl{
 		lockMap: make(map[TableId]LockTable),
 	}
+	return lm
 }
