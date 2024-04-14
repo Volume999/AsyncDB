@@ -15,6 +15,7 @@ const (
 
 var ErrLockConflict = errors.New("lock conflict")
 var ErrInvalidLockType = errors.New("invalid lock type")
+var ErrLocksReleased = errors.New("locks released")
 
 type ConnId uuid.UUID
 type TransactId uuid.UUID
@@ -134,7 +135,8 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 	} else if lockType == WriteLock {
 		if wl.tId == TransactId(uuid.Nil) {
 			if len(rl) == 0 || (len(rl) == 1 && rl[0].tId == tid) {
-				wl = &TransactInfo{tId: tid, ts: ts}
+				wl.tId = tid
+				wl.ts = ts
 				lm.AddLockInfo(tid, tableId, LockInfo{key: key, lockType: WriteLock})
 				return nil
 			}
@@ -146,6 +148,7 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 				LockType: WriteLock,
 				Chan:     res,
 			})
+			return <-res
 		}
 		if wl.tId == tid {
 			return nil
@@ -158,10 +161,10 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 			LockType: WriteLock,
 			Chan:     res,
 		})
+		return <-res
 	} else {
 		return ErrInvalidLockType
 	}
-	panic("unreachable")
 }
 
 func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
@@ -235,7 +238,7 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 					} else {
 						if wlock.ts < waiter.TInfo.ts {
 							ol.Queue = ol.Queue[1:]
-							waiter.Chan <- ErrLockConflict
+							waiter.Chan <- ErrLocksReleased
 						}
 					}
 				}
