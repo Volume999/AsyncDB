@@ -26,25 +26,24 @@ type LockManager interface {
 	ReleaseLocks(tid TransactId) error
 }
 
-type LockInfo struct {
-	key      interface{}
-	lockType int
-}
-
-type TransactInfo struct {
+type Transaction struct {
 	tId TransactId
 	ts  int64
 }
 
+func (t *Transaction) isOlderThan(other *Transaction) bool {
+	return t.ts < other.ts
+}
+
 type LockWaiter struct {
-	TInfo    *TransactInfo
+	xact     *Transaction
 	LockType int
 	Chan     chan error
 }
 
 type ObjectLock struct {
-	WLock *TransactInfo
-	RLock []*TransactInfo
+	WLock *Transaction
+	RLock []*Transaction
 	Queue []*LockWaiter
 	m     *sync.Mutex
 }
@@ -52,6 +51,11 @@ type ObjectLock struct {
 type LockTable struct {
 	Locks map[interface{}]*ObjectLock
 	m     *sync.Mutex
+}
+
+type LockInfo struct {
+	key      interface{}
+	lockType int
 }
 
 type LockManagerImpl struct {
@@ -69,7 +73,7 @@ func NewLockManager() *LockManagerImpl {
 	return lm
 }
 
-func (lm *LockManagerImpl) AddLockInfo(tid TransactId, tableId TableId, info LockInfo) {
+func (lm *LockManagerImpl) addLockInfo(tid TransactId, tableId TableId, info LockInfo) {
 	lm.m.Lock()
 	defer lm.m.Unlock()
 	if _, ok := lm.transactMap[tid]; !ok {
@@ -78,40 +82,47 @@ func (lm *LockManagerImpl) AddLockInfo(tid TransactId, tableId TableId, info Loc
 	lm.transactMap[tid][tableId] = append(lm.transactMap[tid][tableId], info)
 }
 
+func (lm *LockManagerImpl) addTableIfNotExists(tableId TableId) {
+	if _, ok := lm.lockMap[tableId]; ok {
+		return
+	}
+	lm.m.Lock()
+	defer lm.m.Unlock()
+	lm.lockMap[tableId] = LockTable{
+		Locks: make(map[interface{}]*ObjectLock),
+		m:     &sync.Mutex{},
+	}
+}
+
+func (lm *LockManagerImpl) addTableKeyIfNotExists(tableId TableId, key interface{}) {
+	if _, ok := lm.lockMap[tableId].Locks[key]; ok {
+		return
+	}
+	lm.lockMap[tableId].m.Lock()
+	defer lm.lockMap[tableId].m.Unlock()
+	lm.lockMap[tableId].Locks[key] = &ObjectLock{
+		WLock: &Transaction{TransactId(uuid.Nil), 0},
+		RLock: make([]*Transaction, 0),
+		Queue: make([]*LockWaiter, 0),
+		m:     &sync.Mutex{},
+	}
+}
+
 func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId TableId, key interface{}) error {
 	// Todo: Check if the transaction is already holding the lock
-	if _, ok := lm.lockMap[tableId]; !ok {
-		lm.m.Lock()
-		if _, ok := lm.lockMap[tableId]; !ok {
-			lm.lockMap[tableId] = LockTable{
-				Locks: make(map[interface{}]*ObjectLock),
-				m:     &sync.Mutex{},
-			}
-		}
-		lm.m.Unlock()
-	}
-	if _, ok := lm.lockMap[tableId].Locks[key]; !ok {
-		lm.lockMap[tableId].m.Lock()
-		if _, ok := lm.lockMap[tableId].Locks[key]; !ok {
-			lm.lockMap[tableId].Locks[key] = &ObjectLock{
-				WLock: &TransactInfo{TransactId(uuid.Nil), 0},
-				RLock: make([]*TransactInfo, 0),
-				Queue: make([]*LockWaiter, 0),
-				m:     &sync.Mutex{},
-			}
-		}
-		lm.lockMap[tableId].m.Unlock()
-	}
-	lm.AddLockInfo(tid, tableId, LockInfo{key: key, lockType: lockType})
+	lm.addTableIfNotExists(tableId)
+	lm.addTableKeyIfNotExists(tableId, key)
+	lm.addLockInfo(tid, tableId, LockInfo{key: key, lockType: lockType})
+	xact := &Transaction{tId: tid, ts: ts}
 	ol := lm.lockMap[tableId].Locks[key]
 	ol.m.Lock()
 	wl := ol.WLock
 	rl := ol.RLock
 	readTids := make(map[TransactId]bool)
-	var readMinTs int64 = math.MaxInt64
+	youngerReadExists := false
 	for _, r := range rl {
 		readTids[r.tId] = true
-		readMinTs = min(readMinTs, r.ts)
+		youngerReadExists = youngerReadExists || xact.isOlderThan(r)
 	}
 	res := make(chan error)
 	if lockType == ReadLock {
@@ -120,13 +131,13 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 			return nil
 		}
 		if wl.tId == TransactId(uuid.Nil) {
-			ol.RLock = append(rl, &TransactInfo{tId: tid, ts: ts})
+			ol.RLock = append(rl, xact)
 			ol.m.Unlock()
 			return nil
 		}
-		if wl.ts < ts {
+		if xact.isOlderThan(wl) {
 			ol.Queue = append(ol.Queue, &LockWaiter{
-				TInfo:    &TransactInfo{tId: tid, ts: ts},
+				xact:     xact,
 				LockType: ReadLock,
 				Chan:     res,
 			})
@@ -138,37 +149,37 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 	} else if lockType == WriteLock {
 		if wl.tId == TransactId(uuid.Nil) {
 			if len(rl) == 0 || (len(rl) == 1 && rl[0].tId == tid) {
-				ol.WLock = &TransactInfo{tId: tid, ts: ts}
+				ol.WLock = xact
 				ol.m.Unlock()
 				return nil
 			}
-			if readMinTs >= ts {
+			if youngerReadExists {
+				ol.Queue = append(ol.Queue, &LockWaiter{
+					xact:     xact,
+					LockType: WriteLock,
+					Chan:     res,
+				})
 				ol.m.Unlock()
-				return ErrLockConflict
+				return <-res
 			}
+			ol.m.Unlock()
+			return ErrLockConflict
+		}
+		if wl.tId == tid {
+			ol.m.Unlock()
+			return nil
+		}
+		if xact.isOlderThan(wl) {
 			ol.Queue = append(ol.Queue, &LockWaiter{
-				TInfo:    &TransactInfo{tId: tid, ts: ts},
+				xact:     &Transaction{tId: tid, ts: ts},
 				LockType: WriteLock,
 				Chan:     res,
 			})
 			ol.m.Unlock()
 			return <-res
 		}
-		if wl.tId == tid {
-			ol.m.Unlock()
-			return nil
-		}
-		if wl.ts >= ts {
-			ol.m.Unlock()
-			return ErrLockConflict
-		}
-		ol.Queue = append(ol.Queue, &LockWaiter{
-			TInfo:    &TransactInfo{tId: tid, ts: ts},
-			LockType: WriteLock,
-			Chan:     res,
-		})
 		ol.m.Unlock()
-		return <-res
+		return ErrLockConflict
 	} else {
 		return ErrInvalidLockType
 	}
@@ -194,7 +205,7 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 			ol := table.Locks[lock.key]
 			ol.m.Lock()
 			if ol.WLock.tId == tid {
-				ol.WLock = &TransactInfo{
+				ol.WLock = &Transaction{
 					TransactId(uuid.Nil),
 					0,
 				}
@@ -207,7 +218,7 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 				}
 			}
 			for i, waiter := range ol.Queue {
-				if waiter.TInfo.tId == tid {
+				if waiter.xact.tId == tid {
 					waiter.Chan <- ErrLocksReleased
 					ol.Queue = slices.Delete(ol.Queue, i, i+1)
 				}
@@ -218,10 +229,10 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 				if waiter.LockType == ReadLock {
 					wlock := ol.WLock
 					if wlock.tId == TransactId(uuid.Nil) {
-						ol.RLock = append(ol.RLock, waiter.TInfo)
+						ol.RLock = append(ol.RLock, waiter.xact)
 						ol.Queue = ol.Queue[1:]
 						waiter.Chan <- nil
-					} else if wlock.ts < waiter.TInfo.ts {
+					} else if wlock.ts > waiter.xact.ts {
 						ol.Queue = ol.Queue[1:]
 						waiter.Chan <- ErrLockConflict
 					}
@@ -233,16 +244,16 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 						minReadTs = min(minReadTs, r.ts)
 					}
 					if wlock.tId == TransactId(uuid.Nil) {
-						if len(rlock) == 0 || (len(rlock) == 1 && rlock[0].tId == waiter.TInfo.tId) {
-							ol.WLock = waiter.TInfo
+						if len(rlock) == 0 || (len(rlock) == 1 && rlock[0].tId == waiter.xact.tId) {
+							ol.WLock = waiter.xact
 							ol.Queue = ol.Queue[1:]
 							waiter.Chan <- nil
-						} else if waiter.TInfo.ts < minReadTs {
+						} else if waiter.xact.ts < minReadTs {
 							ol.Queue = ol.Queue[1:]
 							waiter.Chan <- ErrLockConflict
 						}
 					} else {
-						if wlock.ts < waiter.TInfo.ts {
+						if wlock.ts > waiter.xact.ts {
 							ol.Queue = ol.Queue[1:]
 							waiter.Chan <- ErrLockConflict
 						}

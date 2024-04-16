@@ -3,6 +3,7 @@ package asyncdb
 import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"sync"
 	"testing"
 	"time"
 )
@@ -43,8 +44,8 @@ func TestLockManagerImpl_Lock_When_Conflict_With_Older_Lock_Should_Fail(t *testi
 	lm := NewLockManager()
 	tid1 := TransactId(uuid.New())
 	tid2 := TransactId(uuid.New())
-	_ = lm.Lock(ReadLock, tid1, 2, TableId(1), 1)
-	err := lm.Lock(WriteLock, tid2, 1, TableId(1), 1)
+	_ = lm.Lock(ReadLock, tid1, 1, TableId(1), 1)
+	err := lm.Lock(WriteLock, tid2, 2, TableId(1), 1)
 	assert.EqualError(t, err, lockConflictErr)
 }
 
@@ -62,10 +63,10 @@ func TestLockManagerImpl_ReleaseLocks_Waiters_Should_Be_Released(t *testing.T) {
 	lm := NewLockManager()
 	tid := TransactId(uuid.New())
 	tid2 := TransactId(uuid.New())
-	_ = lm.Lock(WriteLock, tid2, 1, TableId(1), 1)
+	_ = lm.Lock(WriteLock, tid2, 2, TableId(1), 1)
 	waiterErr := make(chan error)
 	go func() {
-		err := lm.Lock(WriteLock, tid, 2, TableId(1), 1)
+		err := lm.Lock(WriteLock, tid, 1, TableId(1), 1)
 		waiterErr <- err
 	}()
 	time.Sleep(10 * time.Millisecond)
@@ -79,4 +80,34 @@ func TestLockManagerImpl_ReleaseLocks_Waiters_Should_Be_Released(t *testing.T) {
 			return false
 		}
 	}, 10*time.Millisecond, 1*time.Millisecond)
+}
+
+func TestLockManagerImpl_Data_Consistency(t *testing.T) {
+	// GIVEN routineCount concurrent goroutines that execute iterCount transactions that increment a counter
+	// WHEN each routineCount completes
+	// THEN the counter should be equal to routineCount * iterCount
+	routineCount := 8
+	iterCount := 10
+	lm := NewLockManager()
+	counter := 0
+	wg := sync.WaitGroup{}
+	wg.Add(routineCount)
+	aborts := 0
+	f := func() {
+		defer wg.Done()
+		for i := range iterCount {
+			tid := TransactId(uuid.New())
+			err := lm.Lock(WriteLock, tid, int64(i), TableId(1), 1)
+			for err != nil {
+				err = lm.Lock(WriteLock, tid, int64(i), TableId(1), 1)
+			}
+			counter++
+			_ = lm.ReleaseLocks(tid)
+		}
+	}
+	for i := 0; i < routineCount; i++ {
+		go f()
+	}
+	wg.Wait()
+	assert.Equal(t, iterCount*routineCount-aborts, counter)
 }
