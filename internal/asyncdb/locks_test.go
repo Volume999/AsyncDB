@@ -87,7 +87,7 @@ func TestLockManagerImpl_Data_Consistency(t *testing.T) {
 	// WHEN each routineCount completes
 	// THEN the counter should be equal to routineCount * iterCount
 	routineCount := 8
-	iterCount := 10
+	iterCount := 1000
 	lm := NewLockManager()
 	counter := 0
 	wg := sync.WaitGroup{}

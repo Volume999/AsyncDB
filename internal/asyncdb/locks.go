@@ -48,8 +48,13 @@ type ObjectLock struct {
 	m     *sync.Mutex
 }
 
+//type LockTable struct {
+//	Locks map[interface{}]*ObjectLock
+//	m     *sync.Mutex
+//}
+
 type LockTable struct {
-	Locks map[interface{}]*ObjectLock
+	Locks *ThreadSafeMap[interface{}, *ObjectLock]
 	m     *sync.Mutex
 }
 
@@ -58,56 +63,80 @@ type LockInfo struct {
 	lockType int
 }
 
+//type LockManagerImpl struct {
+//	lockMap     map[TableId]LockTable
+//	transactMap map[TransactId]map[TableId][]LockInfo
+//	m           *sync.Mutex
+//}
+
 type LockManagerImpl struct {
-	lockMap     map[TableId]LockTable
-	transactMap map[TransactId]map[TableId][]LockInfo
-	m           *sync.Mutex
+	lockMap     *ThreadSafeMap[TableId, *LockTable]
+	transactMap *ThreadSafeMap[TransactId, *ThreadSafeMap[TableId, []LockInfo]]
 }
+
+//func NewLockManager() *LockManagerImpl {
+//	lm := &LockManagerImpl{
+//		lockMap:     make(map[TableId]LockTable),
+//		transactMap: make(map[TransactId]map[TableId][]LockInfo),
+//		m:           &sync.Mutex{},
+//	}
+//	return lm
+//}
 
 func NewLockManager() *LockManagerImpl {
 	lm := &LockManagerImpl{
-		lockMap:     make(map[TableId]LockTable),
-		transactMap: make(map[TransactId]map[TableId][]LockInfo),
-		m:           &sync.Mutex{},
+		lockMap:     NewThreadSafeMap[TableId, *LockTable](),
+		transactMap: NewThreadSafeMap[TransactId, *ThreadSafeMap[TableId, []LockInfo]](),
 	}
 	return lm
 }
 
 func (lm *LockManagerImpl) addLockInfoIfNotExists(tid TransactId, tableId TableId, info LockInfo) {
-	lm.m.Lock()
-	defer lm.m.Unlock()
-	if _, ok := lm.transactMap[tid]; !ok {
-		lm.transactMap[tid] = make(map[TableId][]LockInfo)
+	lm.transactMap.Lock()
+	if _, ok := lm.transactMap.Get(tid, true); !ok {
+		lm.transactMap.Put(tid, NewThreadSafeMap[TableId, []LockInfo](), true)
 	}
-	if !slices.Contains(lm.transactMap[tid][tableId], info) {
-		lm.transactMap[tid][tableId] = append(lm.transactMap[tid][tableId], info)
+	defer lm.transactMap.Unlock()
+	//if !slices.Contains(lm.transactMap.m[tid][tableId], info) {
+	//	lm.transactMap[tid][tableId] = append(lm.transactMap[tid][tableId], info)
+	//}
+	lm.transactMap.m[tid].Lock()
+	infos, _ := lm.transactMap.m[tid].Get(tableId, true)
+	if !slices.Contains(infos, info) {
+		infos = append(infos, info)
+		lm.transactMap.m[tid].Put(tableId, infos, true)
 	}
+	lm.transactMap.m[tid].Unlock()
 }
 
 func (lm *LockManagerImpl) addTableIfNotExists(tableId TableId) {
-	if _, ok := lm.lockMap[tableId]; ok {
+	lm.lockMap.Lock()
+	defer lm.lockMap.Unlock()
+	if _, ok := lm.lockMap.Get(tableId, true); ok {
 		return
 	}
-	lm.m.Lock()
-	defer lm.m.Unlock()
-	lm.lockMap[tableId] = LockTable{
-		Locks: make(map[interface{}]*ObjectLock),
+	lm.lockMap.Put(tableId, &LockTable{
+		Locks: NewThreadSafeMap[interface{}, *ObjectLock](),
 		m:     &sync.Mutex{},
-	}
+	}, true)
+
 }
 
 func (lm *LockManagerImpl) addTableKeyIfNotExists(tableId TableId, key interface{}) {
-	if _, ok := lm.lockMap[tableId].Locks[key]; ok {
+	// We assume that the table already exists
+	table, _ := lm.lockMap.Get(tableId, false)
+	locks := table.Locks
+	locks.Lock()
+	defer locks.Unlock()
+	if _, ok := locks.Get(key, true); ok {
 		return
 	}
-	lm.lockMap[tableId].m.Lock()
-	defer lm.lockMap[tableId].m.Unlock()
-	lm.lockMap[tableId].Locks[key] = &ObjectLock{
+	locks.Put(key, &ObjectLock{
 		WLock: &Transaction{TransactId(uuid.Nil), 0},
 		RLock: make([]*Transaction, 0),
 		Queue: make([]*LockWaiter, 0),
 		m:     &sync.Mutex{},
-	}
+	}, true)
 }
 
 func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId TableId, key interface{}) error {
@@ -116,7 +145,9 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 	lm.addTableKeyIfNotExists(tableId, key)
 	lm.addLockInfoIfNotExists(tid, tableId, LockInfo{key: key, lockType: lockType})
 	xact := &Transaction{tId: tid, ts: ts}
-	ol := lm.lockMap[tableId].Locks[key]
+	table, _ := lm.lockMap.Get(tableId, false)
+	//ol := lm.lockMap[tableId].Locks[key]
+	ol, _ := table.Locks.Get(key, false)
 	ol.m.Lock()
 	wl := ol.WLock
 	rl := ol.RLock
@@ -188,24 +219,36 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 }
 
 func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
-	lm.m.Lock()
-	if _, ok := lm.transactMap[tid]; !ok {
+	//lm.lockMap.Lock()
+	//if _, ok := lm.transactMap[tid]; !ok {
+	//	return nil
+	//}
+	//transactLocks := lm.transactMap[tid]
+	//delete(lm.transactMap, tid)
+	//lm.m.Unlock()
+	lm.transactMap.Lock()
+	transactLocks, ok := lm.transactMap.Get(tid, true)
+	if !ok {
 		return nil
 	}
-	transactLocks := lm.transactMap[tid]
-	delete(lm.transactMap, tid)
-	lm.m.Unlock()
-	for tableId, locks := range transactLocks {
-		if _, ok := lm.lockMap[tableId]; !ok {
+	lm.transactMap.Delete(tid, true)
+	lm.transactMap.Unlock()
+	transactLocks.Lock()
+	for tableId, locks := range transactLocks.m {
+		//if _, ok := lm.lockMap[tableId]; !ok {
+		//	continue
+		//}
+		//table := lm.lockMap[tableId]
+		table, ok := lm.lockMap.Get(tableId, false)
+		if !ok {
 			continue
 		}
-		table := lm.lockMap[tableId]
-		table.m.Lock()
+		table.Locks.Lock()
 		for _, lock := range locks {
-			if _, ok := table.Locks[lock.key]; !ok {
+			ol, ok := table.Locks.Get(lock.key, true)
+			if !ok {
 				continue
 			}
-			ol := table.Locks[lock.key]
 			ol.m.Lock()
 			if ol.WLock.tId == tid {
 				ol.WLock = &Transaction{
@@ -265,7 +308,8 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 			}
 			ol.m.Unlock()
 		}
-		table.m.Unlock()
+		table.Locks.Unlock()
 	}
+	transactLocks.Unlock()
 	return nil
 }
