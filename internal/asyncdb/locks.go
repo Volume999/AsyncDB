@@ -73,13 +73,15 @@ func NewLockManager() *LockManagerImpl {
 	return lm
 }
 
-func (lm *LockManagerImpl) addLockInfo(tid TransactId, tableId TableId, info LockInfo) {
+func (lm *LockManagerImpl) addLockInfoIfNotExists(tid TransactId, tableId TableId, info LockInfo) {
 	lm.m.Lock()
 	defer lm.m.Unlock()
 	if _, ok := lm.transactMap[tid]; !ok {
 		lm.transactMap[tid] = make(map[TableId][]LockInfo)
 	}
-	lm.transactMap[tid][tableId] = append(lm.transactMap[tid][tableId], info)
+	if !slices.Contains(lm.transactMap[tid][tableId], info) {
+		lm.transactMap[tid][tableId] = append(lm.transactMap[tid][tableId], info)
+	}
 }
 
 func (lm *LockManagerImpl) addTableIfNotExists(tableId TableId) {
@@ -112,7 +114,7 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 	// Todo: Check if the transaction is already holding the lock
 	lm.addTableIfNotExists(tableId)
 	lm.addTableKeyIfNotExists(tableId, key)
-	lm.addLockInfo(tid, tableId, LockInfo{key: key, lockType: lockType})
+	lm.addLockInfoIfNotExists(tid, tableId, LockInfo{key: key, lockType: lockType})
 	xact := &Transaction{tId: tid, ts: ts}
 	ol := lm.lockMap[tableId].Locks[key]
 	ol.m.Lock()
@@ -191,6 +193,7 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 		return nil
 	}
 	transactLocks := lm.transactMap[tid]
+	delete(lm.transactMap, tid)
 	lm.m.Unlock()
 	for tableId, locks := range transactLocks {
 		if _, ok := lm.lockMap[tableId]; !ok {
