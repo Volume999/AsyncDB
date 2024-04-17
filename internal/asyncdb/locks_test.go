@@ -111,3 +111,47 @@ func TestLockManagerImpl_Data_Consistency(t *testing.T) {
 	wg.Wait()
 	assert.Equal(t, iterCount*routineCount-aborts, counter)
 }
+
+// This test is meant to test upgradable locks, and will be enabled once I get around to implementing that
+
+//func TestLockManagerImpl_Data_Consistency_With_Upgradable_Lock(t *testing.T) {
+//	// GIVEN routineCount concurrent goroutines that execute iterCount transactions
+//	// that GET a counter, increment a counter, then PUT it back
+//	// WHEN each routineCount completes
+//	// THEN the counter should be equal to routineCount * iterCount
+//	routineCount := 8
+//	iterCount := 1000
+//	lm := NewLockManager()
+//	counter := 0
+//	wg := sync.WaitGroup{}
+//	wg.Add(routineCount)
+//	xact := func(tid TransactId, ts int64) error {
+//		if err := lm.Lock(ReadLock, tid, ts, TableId(1), 1); err != nil {
+//			return err
+//		}
+//		val := counter
+//		if err := lm.Lock(WriteLock, tid, ts, TableId(1), 1); err != nil {
+//			return err
+//		}
+//		counter = val + 1
+//		return lm.ReleaseLocks(tid)
+//	}
+//	f := func() {
+//		defer wg.Done()
+//		for i := range iterCount {
+//			tid := TransactId(uuid.New())
+//			err := xact(tid, int64(i))
+//			for err != nil {
+//				lm.ReleaseLocks(tid)
+//				err = xact(tid, int64(i))
+//			}
+//		}
+//	}
+//	for i := 0; i < routineCount; i++ {
+//		go f()
+//	}
+//	assert.Eventually(t, func() bool {
+//		wg.Wait()
+//		return assert.Equal(t, iterCount*routineCount, counter)
+//	}, 1*time.Second, 10*time.Millisecond, "Deadlock/Live-lock detected")
+//}
