@@ -29,14 +29,14 @@ type Hasher interface {
 }
 
 type AsyncDB struct {
-	data     map[uint64]Table
+	data     *ThreadSafeMap[uint64, Table]
 	tManager TransactionManager
 	lManager LockManager
 	hasher   Hasher
 }
 
 func NewAsyncDB(tManager TransactionManager, lManager LockManager, hasher Hasher) *AsyncDB {
-	return &AsyncDB{tManager: tManager, lManager: lManager, data: make(map[uint64]Table), hasher: hasher}
+	return &AsyncDB{tManager: tManager, lManager: lManager, data: NewThreadSafeMap[uint64, Table](), hasher: hasher}
 }
 
 func (p *AsyncDB) Connect() (*ConnectionContext, error) {
@@ -55,28 +55,33 @@ func (p *AsyncDB) Disconnect(context *ConnectionContext) error {
 
 func (p *AsyncDB) CreateTable(_ *ConnectionContext, table Table) error {
 	hash := p.hasher.HashStringUint64(table.Name())
-	if _, ok := p.data[hash]; ok {
+	p.data.Lock()
+	defer p.data.Unlock()
+	if _, ok := p.data.GetUnsafe(hash); ok {
 		return fmt.Errorf("%w - %s", ErrTableExists, table.Name())
 	}
-	p.data[hash] = table
+	p.data.PutUnsafe(hash, table)
 	return nil
 }
 
 func (p *AsyncDB) ListTables(_ *ConnectionContext) []string {
-	tables := make([]string, 0, len(p.data))
-	for _, table := range p.data {
-		tables = append(tables, table.Name())
+	tables := p.data.Values()
+	tableNames := make([]string, 0, len(tables))
+	for _, table := range tables {
+		tableNames = append(tableNames, table.Name())
 	}
-	return tables
+	return tableNames
 }
 
 func (p *AsyncDB) DropTable(_ *ConnectionContext, tableName string) error {
 	hash := p.hasher.HashStringUint64(tableName)
-	if _, ok := p.data[hash]; !ok {
+	p.data.Lock()
+	defer p.data.Unlock()
+	if _, ok := p.data.GetUnsafe(hash); !ok {
 		return fmt.Errorf("%w - %s", ErrTableNotFound, tableName)
 	}
 	// TODO: Here need to check if any transaction is using this table, Or, alternatively, we can check that on commit
-	delete(p.data, hash)
+	p.data.DeleteUnsafe(hash)
 	return nil
 }
 
@@ -84,7 +89,7 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 	resultChan := make(chan databases.RequestResult)
 	go func() {
 		hash := p.hasher.HashStringUint64(tableName)
-		table, ok := p.data[hash]
+		table, ok := p.data.Get(hash)
 		if !ok {
 			resultChan <- databases.RequestResult{
 				Data: nil,
@@ -240,7 +245,7 @@ func (p *AsyncDB) RollbackTransaction(ctx *ConnectionContext) error {
 // TODO: Implement this
 func (p *AsyncDB) applyLogs(log *TransactionLog) error {
 	for hash, actions := range log.l {
-		table, ok := p.data[hash]
+		table, ok := p.data.Get(hash)
 		if !ok {
 			return fmt.Errorf("%w - %d", ErrTableNotFound, hash)
 		}
@@ -270,7 +275,7 @@ func (p *AsyncDB) getValue(_ *ConnectionContext, tableName string, key interface
 		})
 
 		hash := p.hasher.HashStringUint64(tableName)
-		table, ok := p.data[hash]
+		table, ok := p.data.Get(hash)
 		if !ok {
 			resultChan <- databases.RequestResult{
 				Data: nil,

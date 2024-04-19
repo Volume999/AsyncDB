@@ -22,6 +22,26 @@ func (t *ThreadSafeMap[K, V]) Unlock() {
 	t.lock.Unlock()
 }
 
+func (t *ThreadSafeMap[K, V]) Keys() []K {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	keys := make([]K, 0, len(t.m))
+	for k := range t.m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func (t *ThreadSafeMap[K, V]) Values() []V {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	values := make([]V, 0, len(t.m))
+	for _, v := range t.m {
+		values = append(values, v)
+	}
+	return values
+}
+
 func (t *ThreadSafeMap[K, V]) Get(key K) (value V, ok bool) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
