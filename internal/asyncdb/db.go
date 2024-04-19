@@ -24,14 +24,19 @@ type ConnectionContext struct {
 var ErrTableExists = errors.New("table already exists")
 var ErrTableNotFound = errors.New("table not found")
 
+type Hasher interface {
+	HashStringUint64(string) uint64
+}
+
 type AsyncDB struct {
 	data     map[uint64]Table
 	tManager TransactionManager
 	lManager LockManager
+	hasher   Hasher
 }
 
-func NewAsyncDB(tManager TransactionManager, lManager LockManager) *AsyncDB {
-	return &AsyncDB{tManager: tManager, lManager: lManager, data: make(map[uint64]Table)}
+func NewAsyncDB(tManager TransactionManager, lManager LockManager, hasher Hasher) *AsyncDB {
+	return &AsyncDB{tManager: tManager, lManager: lManager, data: make(map[uint64]Table), hasher: hasher}
 }
 
 func (p *AsyncDB) Connect() (*ConnectionContext, error) {
@@ -49,7 +54,7 @@ func (p *AsyncDB) Disconnect(context *ConnectionContext) error {
 }
 
 func (p *AsyncDB) CreateTable(_ *ConnectionContext, table Table) error {
-	hash := table.Hash()
+	hash := p.hasher.HashStringUint64(table.Name())
 	if _, ok := p.data[hash]; ok {
 		return fmt.Errorf("%w - %s", ErrTableExists, table.Name())
 	}
@@ -66,7 +71,7 @@ func (p *AsyncDB) ListTables(_ *ConnectionContext) []string {
 }
 
 func (p *AsyncDB) DropTable(_ *ConnectionContext, tableName string) error {
-	hash := HashStringUint64(tableName)
+	hash := p.hasher.HashStringUint64(tableName)
 	if _, ok := p.data[hash]; !ok {
 		return fmt.Errorf("%w - %s", ErrTableNotFound, tableName)
 	}
@@ -78,7 +83,7 @@ func (p *AsyncDB) DropTable(_ *ConnectionContext, tableName string) error {
 func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{}, value interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
-		hash := HashStringUint64(tableName)
+		hash := p.hasher.HashStringUint64(tableName)
 		table, ok := p.data[hash]
 		if !ok {
 			resultChan <- databases.RequestResult{
@@ -110,10 +115,10 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 		txn := ctx.Txn
 		txn.tLogMutex.Lock()
 		txn.tLog.addAction(Action{
-			Op:        LPut,
-			tableName: tableName,
-			Key:       key,
-			Value:     value,
+			Op:      LPut,
+			tableId: hash,
+			Key:     key,
+			Value:   value,
 		})
 		txn.tLogMutex.Unlock()
 		if implTransaction {
@@ -157,6 +162,7 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 
 func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
+	hash := p.hasher.HashStringUint64(tableName)
 	go func() {
 		var err error
 		implTransaction := ctx.Txn == nil
@@ -183,10 +189,10 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 		}
 		txn.tLogMutex.Lock()
 		txn.tLog.addAction(Action{
-			Op:        LDelete,
-			tableName: tableName,
-			Key:       key,
-			Value:     nil,
+			Op:      LDelete,
+			tableId: hash,
+			Key:     key,
+			Value:   nil,
 		})
 		txn.tLogMutex.Unlock()
 		if implTransaction {
@@ -263,7 +269,7 @@ func (p *AsyncDB) getValue(_ *ConnectionContext, tableName string, key interface
 			return []string{"asyncdb", "getValue", "tableName", tableName, "key", fmt.Sprintf("%v", key)}
 		})
 
-		hash := HashStringUint64(tableName)
+		hash := p.hasher.HashStringUint64(tableName)
 		table, ok := p.data[hash]
 		if !ok {
 			resultChan <- databases.RequestResult{

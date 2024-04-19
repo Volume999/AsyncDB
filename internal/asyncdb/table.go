@@ -10,7 +10,6 @@ var ErrTypeMismatch = errors.New("type mismatch")
 var ErrEmptyTableName = errors.New("table name cannot be empty")
 
 type Table interface {
-	Hash() uint64
 	Name() string
 	Get(key interface{}) (value interface{}, err error)
 	Put(key interface{}, value interface{}) error
@@ -31,10 +30,6 @@ func NewGenericTable[K comparable, V any](name string) (*GenericTable[K, V], err
 		name: name,
 		data: make(map[K]V),
 	}, nil
-}
-
-func (t *GenericTable[K, V]) Hash() uint64 {
-	return HashStringUint64(t.name)
 }
 
 func (t *GenericTable[K, V]) Name() string {

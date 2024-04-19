@@ -15,7 +15,8 @@ type DDLSuite struct {
 func (s *DDLSuite) SetupTest() {
 	tm := NewTransactionManager()
 	lm := NewLockManager()
-	s.db = NewAsyncDB(tm, lm)
+	h := NewStringHasher()
+	s.db = NewAsyncDB(tm, lm, h)
 	s.ctx, _ = s.db.Connect()
 }
 
@@ -113,7 +114,8 @@ type DMLSuite struct {
 func (s *DMLSuite) SetupTest() {
 	tm := NewTransactionManager()
 	lm := NewLockManager()
-	s.db = NewAsyncDB(tm, lm)
+	h := NewStringHasher()
+	s.db = NewAsyncDB(tm, lm, h)
 	ctx, _ := s.db.Connect()
 	s.ctx = ctx
 	table1, _ := NewGenericTable[int, int]("test")

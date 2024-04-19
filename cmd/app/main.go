@@ -29,7 +29,8 @@ func debug() {
 
 	tm := asyncdb.NewTransactionManager()
 	lm := asyncdb.NewLockManager()
-	db := asyncdb.NewAsyncDB(tm, lm)
+	h := asyncdb.NewStringHasher()
+	db := asyncdb.NewAsyncDB(tm, lm, h)
 	ctx, _ := db.Connect()
 	loader := loaders.NewAsyncDBLoader(db, data)
 	loader.Load()
