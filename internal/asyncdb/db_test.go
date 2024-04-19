@@ -105,6 +105,35 @@ func (s *DDLSuite) TestAsyncDB_DeleteTable() {
 	}
 }
 
+type TCLSuite struct {
+	suite.Suite
+	db  *AsyncDB
+	ctx *ConnectionContext
+}
+
+func (s *TCLSuite) SetupTest() {
+	tm := NewTransactionManager()
+	lm := NewLockManager()
+	h := NewStringHasher()
+	s.db = NewAsyncDB(tm, lm, h)
+	s.ctx, _ = s.db.Connect()
+}
+
+func (s *TCLSuite) TestAsyncDB_BeginTransaction() {
+	db := s.db
+	ctx := s.ctx
+	err := db.BeginTransaction(ctx)
+	s.Nil(err)
+}
+
+func (s *TCLSuite) TestAsyncDB_CommitTransaction() {
+	db := s.db
+	ctx := s.ctx
+	_ = db.BeginTransaction(ctx)
+	err := db.CommitTransaction(ctx)
+	s.Nil(err)
+}
+
 type DMLSuite struct {
 	suite.Suite
 	db  *AsyncDB
@@ -362,6 +391,45 @@ func (s *DMLSuite) TestAsyncDB_Delete() {
 		})
 	}
 }
+
+func (s *DMLSuite) TestAsyncDB_SimpleTransaction() {
+	db := s.db
+	ctx := s.ctx
+	_ = db.BeginTransaction(ctx)
+	<-db.Put(ctx, "test", 1, 2)
+	<-db.Put(ctx, "test", 2, 3)
+	db.CommitTransaction(ctx)
+	ch := db.Get(ctx, "test", 1)
+	s.Eventually(func() bool {
+		select {
+		case res := <-ch:
+			s.Nil(res.Err)
+			s.Equal(2, res.Data)
+			return true
+		default:
+			return false
+		}
+	}, time.Second, 100*time.Millisecond)
+}
+
+//func (s *DMLSuite) TestAsyncDB_When_Reading_Record_Written_By_Same_Transaction_Should_Return_Value() {
+//	db := s.db
+//	ctx := s.ctx
+//	_ = db.StartTransaction(ctx)
+//	<-db.Put(ctx, "test", 1, 2)
+//	<-db.Put(ctx, "test", 2, 3)
+//	ch := db.Get(ctx, "test", 1)
+//	s.Eventually(func() bool {
+//		select {
+//		case res := <-ch:
+//			s.Nil(res.Err)
+//			s.Equal(2, res.Data)
+//			return true
+//		default:
+//			return false
+//		}
+//	}, time.Second, 100*time.Millisecond)
+//}
 
 func TestDDLSuite(t *testing.T) {
 	suite.Run(t, new(DDLSuite))

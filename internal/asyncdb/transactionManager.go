@@ -17,7 +17,7 @@ var (
 )
 
 type Txn struct {
-	txnID     uuid.UUID
+	txnID     TransactId
 	tLog      *TransactionLog
 	tLogMutex *sync.Mutex
 }
@@ -36,13 +36,14 @@ type LogEntry struct {
 }
 
 type TransactionLog struct {
-	l map[uint64][]LogEntry
+	l *ThreadSafeMap[uint64, []LogEntry]
 }
 
 type TransactionManager interface {
-	BeginTransaction(ConnId uuid.UUID) (*Txn, error)
+	StartTransaction(ConnId uuid.UUID) (TransactId, error)
 	DeleteLog(ConnId uuid.UUID) error
 	GetLog(ConnId uuid.UUID) (*TransactionLog, error)
+	EndTransaction(ConnId uuid.UUID) error
 }
 
 type TransactionManagerImpl struct {
@@ -55,22 +56,24 @@ func NewTransactionManager() *TransactionManagerImpl {
 	}
 }
 
-func (t *TransactionManagerImpl) BeginTransaction(ConnId uuid.UUID) (*Txn, error) {
+func (t *TransactionManagerImpl) StartTransaction(ConnId uuid.UUID) (TransactId, error) {
 	if _, ok := t.tLogs[ConnId]; ok {
-		return nil, ErrConnInXact
+		return TransactId(uuid.Nil), ErrConnInXact
 	}
+	txnId := TransactId(uuid.New())
 	txn := &Txn{
-		txnID: uuid.New(),
+		txnID: txnId,
 		tLog: &TransactionLog{
-			l: make(map[uint64][]LogEntry),
+			//l: make(map[uint64][]LogEntry),
+			l: NewThreadSafeMap[uint64, []LogEntry](),
 		},
 		tLogMutex: &sync.Mutex{},
 	}
 	t.tLogs[ConnId] = txn
-	return txn, nil
+	return txnId, nil
 }
 
-func (t *TransactionManagerImpl) DeleteLog(ConnId uuid.UUID) error {
+func (t *TransactionManagerImpl) EndTransaction(ConnId uuid.UUID) error {
 	if _, ok := t.tLogs[ConnId]; !ok {
 		return ErrXactNotFound
 	}
@@ -79,7 +82,12 @@ func (t *TransactionManagerImpl) DeleteLog(ConnId uuid.UUID) error {
 }
 
 func (t *TransactionLog) addAction(a Action) {
-	t.l[a.tableId] = append(t.l[a.tableId], LogEntry{Op: a.Op, Value: a.Value, Key: a.Key})
+	//t.l[a.tableId] = append(t.l[a.tableId], LogEntry{Op: a.Op, Value: a.Value, Key: a.Key})
+	t.l.Lock()
+	defer t.l.Unlock()
+	entries, _ := t.l.GetUnsafe(a.tableId)
+	entries = append(entries, LogEntry{Op: a.Op, Value: a.Value, Key: a.Key})
+	t.l.PutUnsafe(a.tableId, entries)
 }
 
 func (t *TransactionManagerImpl) GetLog(ConnId uuid.UUID) (*TransactionLog, error) {
@@ -88,4 +96,17 @@ func (t *TransactionManagerImpl) GetLog(ConnId uuid.UUID) (*TransactionLog, erro
 		return &TransactionLog{}, ErrXactNotFound
 	}
 	return t.tLogs[ConnId].tLog, nil
+}
+
+func (t *TransactionManagerImpl) DeleteLog(ConnId uuid.UUID) error {
+	txn, ok := t.tLogs[ConnId]
+	if !ok {
+		return ErrXactNotFound
+	}
+	txn.tLogMutex.Lock()
+	defer txn.tLogMutex.Unlock()
+	txn.tLog = &TransactionLog{
+		l: NewThreadSafeMap[uint64, []LogEntry](),
+	}
+	return nil
 }

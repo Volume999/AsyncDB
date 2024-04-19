@@ -15,10 +15,16 @@ const (
 	Ready
 )
 
+type TransactInfo struct {
+	tId  TransactId
+	mode int
+}
+
 type ConnectionContext struct {
-	ID   uuid.UUID
-	Txn  *Txn
-	Mode int // Active, Committing, Aborting
+	ID  uuid.UUID
+	Txn *TransactInfo
+	//Txn  *Txn
+	//Mode int // Active, Committing, Aborting
 }
 
 var ErrTableExists = errors.New("table already exists")
@@ -105,27 +111,29 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 			}
 			return
 		}
-		implTransaction := ctx.Txn == nil
-		if implTransaction {
-			txn, err := p.tManager.BeginTransaction(ctx.ID)
-			if err != nil {
-				resultChan <- databases.RequestResult{
-					Data: nil,
-					Err:  err,
-				}
-				return
+		implTransaction := false
+		txnId, err := p.tManager.StartTransaction(ctx.ID)
+		if err == nil {
+			implTransaction = true
+			ctx.Txn = &TransactInfo{
+				tId:  txnId,
+				mode: Active,
 			}
-			ctx.Txn = txn
+		} else if !errors.Is(err, ErrConnInXact) {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  err,
+			}
+			return
 		}
-		txn := ctx.Txn
-		txn.tLogMutex.Lock()
-		txn.tLog.addAction(Action{
+		tLog, err := p.tManager.GetLog(ctx.ID)
+		// TODO: Want to handle some errors?
+		tLog.addAction(Action{
 			Op:      LPut,
 			tableId: hash,
 			Key:     key,
 			Value:   value,
 		})
-		txn.tLogMutex.Unlock()
 		if implTransaction {
 			err = p.CommitTransaction(ctx)
 		}
@@ -140,19 +148,21 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	go func() {
-		implTransaction := ctx.Txn == nil
-		if implTransaction {
-			txn, err := p.tManager.BeginTransaction(ctx.ID)
-			if err != nil {
-				resultChan <- databases.RequestResult{
-					Data: nil,
-					Err:  err,
-				}
-				return
+		implTransaction := false
+		txnId, err := p.tManager.StartTransaction(ctx.ID)
+		if err == nil {
+			implTransaction = true
+			ctx.Txn = &TransactInfo{
+				tId:  txnId,
+				mode: Active,
 			}
-			ctx.Txn = txn
+		} else if !errors.Is(err, ErrConnInXact) {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  err,
+			}
+			return
 		}
-		var err error
 		res := <-p.getValue(ctx, tableName, key)
 		if implTransaction {
 			err = p.CommitTransaction(ctx)
@@ -170,19 +180,21 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 	hash := p.hasher.HashStringUint64(tableName)
 	go func() {
 		var err error
-		implTransaction := ctx.Txn == nil
-		if implTransaction {
-			txn, err := p.tManager.BeginTransaction(ctx.ID)
-			if err != nil {
-				resultChan <- databases.RequestResult{
-					Data: nil,
-					Err:  err,
-				}
-				return
+		implTransaction := false
+		txnId, err := p.tManager.StartTransaction(ctx.ID)
+		if err == nil {
+			implTransaction = true
+			ctx.Txn = &TransactInfo{
+				tId:  txnId,
+				mode: Active,
 			}
-			ctx.Txn = txn
+		} else if !errors.Is(err, ErrConnInXact) {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  err,
+			}
+			return
 		}
-		txn := ctx.Txn
 		res := <-p.getValue(ctx, tableName, key)
 		if res.Err != nil {
 			err = p.RollbackTransaction(ctx)
@@ -192,14 +204,13 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 			}
 			return
 		}
-		txn.tLogMutex.Lock()
-		txn.tLog.addAction(Action{
+		tLog, err := p.tManager.GetLog(ctx.ID)
+		tLog.addAction(Action{
 			Op:      LDelete,
 			tableId: hash,
 			Key:     key,
 			Value:   nil,
 		})
-		txn.tLogMutex.Unlock()
 		if implTransaction {
 			err = p.CommitTransaction(ctx)
 		}
@@ -212,39 +223,41 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 }
 
 func (p *AsyncDB) BeginTransaction(ctx *ConnectionContext) error {
-	txn, err := p.tManager.BeginTransaction(ctx.ID)
+	txn, err := p.tManager.StartTransaction(ctx.ID)
 	if err != nil {
 		return err
 	}
-	ctx.Txn = txn
-	ctx.Mode = Active
+	ctx.Txn = &TransactInfo{tId: txn, mode: Active}
 	return nil
 }
 
 func (p *AsyncDB) CommitTransaction(ctx *ConnectionContext) error {
+	// Todo: Check the current state of transaction?
 	// Todo: Wait for concurrent queries to finish?
-	ctx.Mode = Committing
-	txn := ctx.Txn
-	txn.tLogMutex.Lock()
-	_ = p.applyLogs(txn.tLog)
-	txn.tLogMutex.Unlock()
-	err := p.tManager.DeleteLog(ctx.ID)
-	ctx.Txn = nil
-	ctx.Mode = Ready
+	ctx.Txn.mode = Committing
+	tLog, err := p.tManager.GetLog(ctx.ID)
+	// Todo: Error handling?
+	// Todo: this is disgusting
+	_ = p.applyLogs(tLog)
+	err = p.tManager.EndTransaction(ctx.ID)
+	ctx.Txn = &TransactInfo{tId: TransactId(uuid.Nil), mode: Ready}
 	return err
 }
 
 func (p *AsyncDB) RollbackTransaction(ctx *ConnectionContext) error {
-	ctx.Mode = Aborting
+	ctx.Txn.mode = Aborting
 	// Todo: Cancel concurrent queries?
 	err := p.tManager.DeleteLog(ctx.ID)
-	ctx.Mode = Ready
+	ctx.Txn.mode = Ready
 	return err
 }
 
 // TODO: Implement this
 func (p *AsyncDB) applyLogs(log *TransactionLog) error {
-	for hash, actions := range log.l {
+	// Todo: I should not do it this way, it is better to implement a Range function of some sort
+	log.l.Lock()
+	defer log.l.Unlock()
+	for hash, actions := range log.l.m {
 		table, ok := p.data.Get(hash)
 		if !ok {
 			return fmt.Errorf("%w - %d", ErrTableNotFound, hash)

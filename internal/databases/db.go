@@ -21,7 +21,7 @@ type RequestResult struct {
 //	Put(ctx *ConnectionContext, tableName string, key interface{}, value interface{}) (resultChan <-chan RequestResult)
 //	Get(ctx *ConnectionContext, tableName string, key interface{}) (resultChan <-chan RequestResult)
 //	Delete(ctx *ConnectionContext, tableName string, key interface{}) (resultChan <-chan RequestResult)
-//	BeginTransaction(ctx *ConnectionContext) error
+//	StartTransaction(ctx *ConnectionContext) error
 //	CommitTransaction(ctx *ConnectionContext) error
 //	RollbackTransaction(ctx *ConnectionContext) error
 //}
