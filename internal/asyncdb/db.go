@@ -23,8 +23,6 @@ type TransactInfo struct {
 type ConnectionContext struct {
 	ID  uuid.UUID
 	Txn *TransactInfo
-	//Txn  *Txn
-	//Mode int // Active, Committing, Aborting
 }
 
 var ErrTableExists = errors.New("table already exists")
@@ -286,7 +284,6 @@ func (p *AsyncDB) getValue(_ *ConnectionContext, tableName string, key interface
 		debugger.SetLabels(func() []string {
 			return []string{"asyncdb", "getValue", "tableName", tableName, "key", fmt.Sprintf("%v", key)}
 		})
-
 		hash := p.hasher.HashStringUint64(tableName)
 		table, ok := p.data.Get(hash)
 		if !ok {

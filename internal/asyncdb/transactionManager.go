@@ -47,42 +47,44 @@ type TransactionManager interface {
 }
 
 type TransactionManagerImpl struct {
-	tLogs map[uuid.UUID]*Txn
+	tLogs *ThreadSafeMap[uuid.UUID, *Txn]
 }
 
 func NewTransactionManager() *TransactionManagerImpl {
 	return &TransactionManagerImpl{
-		tLogs: make(map[uuid.UUID]*Txn),
+		tLogs: NewThreadSafeMap[uuid.UUID, *Txn](),
 	}
 }
 
 func (t *TransactionManagerImpl) StartTransaction(ConnId uuid.UUID) (TransactId, error) {
-	if _, ok := t.tLogs[ConnId]; ok {
+	t.tLogs.Lock()
+	defer t.tLogs.Unlock()
+	if _, ok := t.tLogs.GetUnsafe(ConnId); ok {
 		return TransactId(uuid.Nil), ErrConnInXact
 	}
 	txnId := TransactId(uuid.New())
 	txn := &Txn{
 		txnID: txnId,
 		tLog: &TransactionLog{
-			//l: make(map[uint64][]LogEntry),
 			l: NewThreadSafeMap[uint64, []LogEntry](),
 		},
 		tLogMutex: &sync.Mutex{},
 	}
-	t.tLogs[ConnId] = txn
+	t.tLogs.PutUnsafe(ConnId, txn)
 	return txnId, nil
 }
 
 func (t *TransactionManagerImpl) EndTransaction(ConnId uuid.UUID) error {
-	if _, ok := t.tLogs[ConnId]; !ok {
+	t.tLogs.Lock()
+	defer t.tLogs.Unlock()
+	if _, ok := t.tLogs.GetUnsafe(ConnId); !ok {
 		return ErrXactNotFound
 	}
-	delete(t.tLogs, ConnId)
+	t.tLogs.DeleteUnsafe(ConnId)
 	return nil
 }
 
 func (t *TransactionLog) addAction(a Action) {
-	//t.l[a.tableId] = append(t.l[a.tableId], LogEntry{Op: a.Op, Value: a.Value, Key: a.Key})
 	t.l.Lock()
 	defer t.l.Unlock()
 	entries, _ := t.l.GetUnsafe(a.tableId)
@@ -91,15 +93,15 @@ func (t *TransactionLog) addAction(a Action) {
 }
 
 func (t *TransactionManagerImpl) GetLog(ConnId uuid.UUID) (*TransactionLog, error) {
-	// TODO: Do we need this function?
-	if _, ok := t.tLogs[ConnId]; !ok {
-		return &TransactionLog{}, ErrXactNotFound
+	tLog, ok := t.tLogs.Get(ConnId)
+	if !ok {
+		return nil, ErrXactNotFound
 	}
-	return t.tLogs[ConnId].tLog, nil
+	return tLog.tLog, nil
 }
 
 func (t *TransactionManagerImpl) DeleteLog(ConnId uuid.UUID) error {
-	txn, ok := t.tLogs[ConnId]
+	txn, ok := t.tLogs.Get(ConnId)
 	if !ok {
 		return ErrXactNotFound
 	}
