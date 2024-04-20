@@ -3,7 +3,6 @@ package asyncdb
 import (
 	"errors"
 	"github.com/google/uuid"
-	"sync"
 )
 
 const (
@@ -17,9 +16,8 @@ var (
 )
 
 type Txn struct {
-	txnID     TransactId
-	tLog      *TransactionLog
-	tLogMutex *sync.Mutex
+	txnID TransactId
+	tLog  *TransactionLog
 }
 
 type Action struct {
@@ -68,7 +66,6 @@ func (t *TransactionManagerImpl) StartTransaction(ConnId uuid.UUID) (TransactId,
 		tLog: &TransactionLog{
 			l: NewThreadSafeMap[uint64, []LogEntry](),
 		},
-		tLogMutex: &sync.Mutex{},
 	}
 	t.tLogs.PutUnsafe(ConnId, txn)
 	return txnId, nil
@@ -105,10 +102,6 @@ func (t *TransactionManagerImpl) DeleteLog(ConnId uuid.UUID) error {
 	if !ok {
 		return ErrXactNotFound
 	}
-	txn.tLogMutex.Lock()
-	defer txn.tLogMutex.Unlock()
-	txn.tLog = &TransactionLog{
-		l: NewThreadSafeMap[uint64, []LogEntry](),
-	}
+	txn.tLog.l = NewThreadSafeMap[uint64, []LogEntry]()
 	return nil
 }
