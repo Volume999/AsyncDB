@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dlsniper/debugger"
 	"github.com/google/uuid"
+	"time"
 )
 
 const (
@@ -17,6 +18,7 @@ const (
 
 type TransactInfo struct {
 	tId  TransactId
+	ts   int64
 	mode int
 }
 
@@ -110,12 +112,15 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 			return
 		}
 		implTransaction := false
+
+		// If the connection is not in a transaction - start a transaction
 		txnId, err := p.tManager.StartTransaction(ctx.ID)
 		if err == nil {
 			implTransaction = true
 			ctx.Txn = &TransactInfo{
 				tId:  txnId,
 				mode: Active,
+				ts:   time.Now().UnixNano(),
 			}
 		} else if !errors.Is(err, ErrConnInXact) {
 			resultChan <- databases.RequestResult{
@@ -125,6 +130,14 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 			return
 		}
 		tLog, err := p.tManager.GetLog(ctx.ID)
+		err = p.lManager.Lock(WriteLock, ctx.Txn.tId, ctx.Txn.ts, TableId(hash), key)
+		if err != nil {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  err,
+			}
+			return
+		}
 		// TODO: Want to handle some errors?
 		tLog.addAction(Action{
 			Op:      LPut,
@@ -153,8 +166,18 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 			ctx.Txn = &TransactInfo{
 				tId:  txnId,
 				mode: Active,
+				ts:   time.Now().UnixNano(),
 			}
 		} else if !errors.Is(err, ErrConnInXact) {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  err,
+			}
+			return
+		}
+		hash := p.hasher.HashStringUint64(tableName)
+		err = p.lManager.Lock(WriteLock, ctx.Txn.tId, ctx.Txn.ts, TableId(hash), key)
+		if err != nil {
 			resultChan <- databases.RequestResult{
 				Data: nil,
 				Err:  err,
@@ -185,8 +208,17 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 			ctx.Txn = &TransactInfo{
 				tId:  txnId,
 				mode: Active,
+				ts:   time.Now().UnixNano(),
 			}
 		} else if !errors.Is(err, ErrConnInXact) {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  err,
+			}
+			return
+		}
+		err = p.lManager.Lock(WriteLock, ctx.Txn.tId, ctx.Txn.ts, TableId(hash), key)
+		if err != nil {
 			resultChan <- databases.RequestResult{
 				Data: nil,
 				Err:  err,
@@ -225,7 +257,7 @@ func (p *AsyncDB) BeginTransaction(ctx *ConnectionContext) error {
 	if err != nil {
 		return err
 	}
-	ctx.Txn = &TransactInfo{tId: txn, mode: Active}
+	ctx.Txn = &TransactInfo{tId: txn, mode: Active, ts: time.Now().UnixNano()}
 	return nil
 }
 
@@ -236,16 +268,26 @@ func (p *AsyncDB) CommitTransaction(ctx *ConnectionContext) error {
 	tLog, err := p.tManager.GetLog(ctx.ID)
 	// Todo: Error handling?
 	// Todo: this is disgusting
-	_ = p.applyLogs(tLog)
-	err = p.tManager.EndTransaction(ctx.ID)
+	err = errors.Join(err, p.applyLogs(tLog))
+	err = errors.Join(err, p.lManager.ReleaseLocks(ctx.Txn.tId))
+	err = errors.Join(err, p.tManager.EndTransaction(ctx.ID))
 	ctx.Txn = &TransactInfo{tId: TransactId(uuid.Nil), mode: Ready}
+	return err
+}
+
+func (p *AsyncDB) abortTransaction(ctx *ConnectionContext) error {
+	ctx.Txn.mode = Aborting
+	err := p.lManager.ReleaseLocks(ctx.Txn.tId)
+	err = errors.Join(err, p.tManager.DeleteLog(ctx.ID))
+	ctx.Txn.mode = Ready
 	return err
 }
 
 func (p *AsyncDB) RollbackTransaction(ctx *ConnectionContext) error {
 	ctx.Txn.mode = Aborting
 	// Todo: Cancel concurrent queries?
-	err := p.tManager.DeleteLog(ctx.ID)
+	err := p.lManager.ReleaseLocks(ctx.Txn.tId)
+
 	ctx.Txn.mode = Ready
 	return err
 }
