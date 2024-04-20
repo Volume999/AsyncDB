@@ -1,7 +1,9 @@
 package asyncdb
 
 import (
+	"errors"
 	"github.com/stretchr/testify/suite"
+	"sync"
 	"testing"
 	"time"
 )
@@ -489,6 +491,101 @@ func (s *DMLSuite) TestAsyncDB_RollbackTransaction_Should_Fail_When_Not_In_Trans
 	ctx := s.ctx
 	err := db.RollbackTransaction(ctx)
 	s.EqualError(err, "connection not in transaction")
+}
+
+func (s *DMLSuite) TestAsyncDB_DirtyWrite() {
+	db := s.db
+	ctx := s.ctx
+	_ = db.BeginTransaction(ctx)
+	<-db.Put(ctx, "test", 1, 2)
+	ctx2, _ := db.Connect()
+	syn := make(chan struct{})
+	go func() {
+		defer close(syn)
+		ch := db.Get(ctx2, "test", 1)
+		s.Eventually(func() bool {
+			select {
+			case res := <-ch:
+				s.Nil(res.Err)
+				s.Equal(2, res.Data)
+				return true
+			default:
+				return false
+			}
+		}, time.Second, 100*time.Millisecond)
+	}()
+	db.CommitTransaction(ctx)
+	<-syn
+}
+
+func (s *DMLSuite) TestAsyncDB_NonRepeatableRead() {
+	db := s.db
+	ctx := s.ctx
+	ctx2, _ := db.Connect()
+	_ = db.BeginTransaction(ctx2)
+	<-db.Put(ctx, "test", 1, 2)
+	_ = db.BeginTransaction(ctx)
+	val := <-db.Get(ctx, "test", 1)
+	syn := make(chan struct{})
+	go func() {
+		defer close(syn)
+		<-db.Put(ctx2, "test", 1, 3)
+		db.CommitTransaction(ctx2)
+	}()
+	val2 := <-db.Get(ctx, "test", 1)
+	db.CommitTransaction(ctx)
+	s.Eventually(func() bool {
+		select {
+		case <-syn:
+			return true
+		default:
+			return false
+		}
+	}, time.Second, 100*time.Millisecond)
+	s.Equal(val2.Data, val.Data)
+	val3 := <-db.Get(ctx, "test", 1)
+	s.Equal(3, val3.Data)
+}
+
+func (s *DMLSuite) TestAsyncDB_Data_Consistency() {
+	db := s.db
+	iters := 1000
+	threads := 10
+	ctx_start := s.ctx
+	<-db.Put(ctx_start, "test", 1, 0)
+	xact := func(ctx *ConnectionContext) error {
+		val := <-db.Get(ctx, "test", 1)
+		if val.Err != nil {
+			return val.Err
+		}
+		val = <-db.Put(ctx, "test", 1, val.Data.(int)+1)
+		return val.Err
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(threads)
+	f := func() {
+		defer wg.Done()
+		ctx, _ := db.Connect()
+		for i := 0; i < iters; i++ {
+			_ = db.BeginTransaction(ctx)
+			err := xact(ctx)
+			for errors.Is(err, ErrLockConflict) {
+				err = xact(ctx)
+			}
+			if err != nil {
+				s.T().Errorf("Error in transaction: %v", err)
+				db.RollbackTransaction(ctx)
+			}
+			db.CommitTransaction(ctx)
+		}
+	}
+	for i := 0; i < threads; i++ {
+		go f()
+	}
+	wg.Wait()
+	val := <-db.Get(ctx_start, "test", 1)
+	s.Nil(val.Err)
+	s.Equal(threads*iters, val.Data)
 }
 
 func TestDDLSuite(t *testing.T) {
