@@ -11,8 +11,8 @@ const (
 )
 
 var (
-	ErrConnInXact   = errors.New("connection in transaction")
-	ErrXactNotFound = errors.New("transaction not found")
+	ErrConnInXact    = errors.New("connection in transaction")
+	ErrConnNotInXact = errors.New("connection not in transaction")
 )
 
 type Txn struct {
@@ -75,7 +75,7 @@ func (t *TransactionManagerImpl) EndTransaction(ConnId uuid.UUID) error {
 	t.tLogs.Lock()
 	defer t.tLogs.Unlock()
 	if _, ok := t.tLogs.GetUnsafe(ConnId); !ok {
-		return ErrXactNotFound
+		return ErrConnNotInXact
 	}
 	t.tLogs.DeleteUnsafe(ConnId)
 	return nil
@@ -92,7 +92,7 @@ func (t *TransactionLog) addAction(a Action) {
 func (t *TransactionManagerImpl) GetLog(ConnId uuid.UUID) (*TransactionLog, error) {
 	tLog, ok := t.tLogs.Get(ConnId)
 	if !ok {
-		return nil, ErrXactNotFound
+		return nil, ErrConnNotInXact
 	}
 	return tLog.tLog, nil
 }
@@ -100,7 +100,7 @@ func (t *TransactionManagerImpl) GetLog(ConnId uuid.UUID) (*TransactionLog, erro
 func (t *TransactionManagerImpl) DeleteLog(ConnId uuid.UUID) error {
 	txn, ok := t.tLogs.Get(ConnId)
 	if !ok {
-		return ErrXactNotFound
+		return ErrConnNotInXact
 	}
 	txn.tLog.l = NewThreadSafeMap[uint64, []LogEntry]()
 	return nil

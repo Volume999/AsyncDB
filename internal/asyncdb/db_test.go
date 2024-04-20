@@ -431,10 +431,74 @@ func (s *DMLSuite) TestAsyncDB_SimpleTransaction() {
 //	}, time.Second, 100*time.Millisecond)
 //}
 
+func (s *DMLSuite) TestAsyncDB_TransactionAbort_Should_Rollback() {
+	db := s.db
+	ctx := s.ctx
+	<-db.Put(ctx, "test", 1, 2)
+	_ = db.BeginTransaction(ctx)
+	<-db.Put(ctx, "test", 1, 3)
+	db.RollbackTransaction(ctx)
+	ch := db.Get(ctx, "test", 1)
+	s.Eventually(func() bool {
+		select {
+		case res := <-ch:
+			s.Nil(res.Err)
+			s.Equal(2, res.Data)
+			return true
+		default:
+			return false
+		}
+	}, time.Second, 100*time.Millisecond)
+}
+
+func (s *DMLSuite) TestAsyncDB_TransactionRollback_Should_Allow_New_Transaction() {
+	db := s.db
+	ctx := s.ctx
+	_ = db.BeginTransaction(ctx)
+	_ = db.RollbackTransaction(ctx)
+	err := db.BeginTransaction(ctx)
+	s.Nil(err)
+}
+
+func (s *DMLSuite) TestAsyncDB_TransactionAbort_Should_Fail_On_New_Transaction() {
+	db := s.db
+	ctx := s.ctx
+	_ = db.BeginTransaction(ctx)
+	_ = db.abortTransaction(ctx)
+	err := db.BeginTransaction(ctx)
+	s.EqualError(err, "connection in transaction")
+}
+
+func (s *DMLSuite) TestAsyncDB_BeginTransaction_Should_Fail_When_Already_In_Transaction() {
+	db := s.db
+	ctx := s.ctx
+	_ = db.BeginTransaction(ctx)
+	err := db.BeginTransaction(ctx)
+	s.EqualError(err, "connection in transaction")
+}
+
+func (s *DMLSuite) TestAsyncDB_CommitTransaction_Should_Fail_When_Not_In_Transaction() {
+	db := s.db
+	ctx := s.ctx
+	err := db.CommitTransaction(ctx)
+	s.EqualError(err, "connection not in transaction")
+}
+
+func (s *DMLSuite) TestAsyncDB_RollbackTransaction_Should_Fail_When_Not_In_Transaction() {
+	db := s.db
+	ctx := s.ctx
+	err := db.RollbackTransaction(ctx)
+	s.EqualError(err, "connection not in transaction")
+}
+
 func TestDDLSuite(t *testing.T) {
 	suite.Run(t, new(DDLSuite))
 }
 
 func TestDMLSuite(t *testing.T) {
 	suite.Run(t, new(DMLSuite))
+}
+
+func TestTCLSuite(t *testing.T) {
+	suite.Run(t, new(TCLSuite))
 }

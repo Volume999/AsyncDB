@@ -264,8 +264,11 @@ func (p *AsyncDB) BeginTransaction(ctx *ConnectionContext) error {
 func (p *AsyncDB) CommitTransaction(ctx *ConnectionContext) error {
 	// Todo: Check the current state of transaction?
 	// Todo: Wait for concurrent queries to finish?
-	ctx.Txn.mode = Committing
 	tLog, err := p.tManager.GetLog(ctx.ID)
+	if err != nil {
+		return err
+	}
+	ctx.Txn.mode = Committing
 	// Todo: Error handling?
 	// Todo: this is disgusting
 	err = errors.Join(err, p.applyLogs(tLog))
@@ -287,7 +290,7 @@ func (p *AsyncDB) RollbackTransaction(ctx *ConnectionContext) error {
 	ctx.Txn.mode = Aborting
 	// Todo: Cancel concurrent queries?
 	err := p.lManager.ReleaseLocks(ctx.Txn.tId)
-
+	err = errors.Join(err, p.tManager.EndTransaction(ctx.ID))
 	ctx.Txn.mode = Ready
 	return err
 }
