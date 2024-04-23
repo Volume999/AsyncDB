@@ -1,7 +1,6 @@
 package activities
 
 import (
-	"AsyncDB/pkg/util"
 	"math/rand"
 	"sync"
 )
@@ -29,7 +28,7 @@ func (s *AsyncSimulator) ValidateAvailability() {
 		go func() {
 			defer wg.Done()
 			s.disk.SimulateDiskAccess()
-			util.SimulateCpuLoad(100)
+			SimulateCpuLoad(100)
 		}()
 	}
 	wg.Wait()
@@ -39,17 +38,17 @@ func (s *AsyncSimulator) ValidateAvailability() {
 		go func() {
 			defer wg.Done()
 			s.disk.SimulateDiskAccess()
-			util.SimulateCpuLoad(100)
+			SimulateCpuLoad(100)
 		}()
 	}
 	wg.Wait()
-	util.SimulateCpuLoad(10000)
+	SimulateCpuLoad(10000)
 }
 
 func (s *AsyncSimulator) VerifyCustomer() {
 	wg := &sync.WaitGroup{}
 	s.disk.SimulateDiskAccess()
-	util.SimulateCpuLoad(100)
+	SimulateCpuLoad(100)
 	appliedOffersCnt := s.config.AppliedOffersCnt
 	wg.Add(appliedOffersCnt)
 	for range appliedOffersCnt {
@@ -58,7 +57,7 @@ func (s *AsyncSimulator) VerifyCustomer() {
 			isLimitedUse := rand.Intn(2) == 0
 			if isLimitedUse {
 				s.disk.SimulateDiskAccess()
-				util.SimulateCpuLoad(1000)
+				SimulateCpuLoad(1000)
 			}
 		}()
 	}
@@ -76,7 +75,7 @@ func (s *AsyncSimulator) ValidatePayment() {
 			isActive := rand.Intn(10) < 4
 			if isActive {
 				s.disk.SimulateDiskAccess()
-				util.SimulateCpuLoad(10000)
+				SimulateCpuLoad(10000)
 				s.disk.SimulateDiskAccess()
 				s.disk.SimulateDiskAccess()
 			}
@@ -91,7 +90,7 @@ func (s *AsyncSimulator) ValidateProductOption() {
 
 func (s *AsyncSimulator) RecordOffer() {
 	s.disk.SimulateDiskAccess()
-	util.SimulateCpuLoad(10000)
+	SimulateCpuLoad(10000)
 }
 
 func (s *AsyncSimulator) CommitTax() {
@@ -108,7 +107,7 @@ func (s *AsyncSimulator) DecrementInventory() {
 		go func() {
 			defer wg.Done()
 			s.disk.SimulateDiskAccess()
-			util.SimulateCpuLoad(1000)
+			SimulateCpuLoad(1000)
 			s.disk.SimulateDiskAccess()
 		}()
 	}

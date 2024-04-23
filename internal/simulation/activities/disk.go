@@ -1,7 +1,6 @@
 package activities
 
 import (
-	"AsyncDB/pkg/util"
 	"sync"
 )
 
@@ -20,7 +19,7 @@ func NewUnsafeDiskAccessSimulator(accessTimeMs int) *UnsafeDiskAccessSimulator {
 }
 
 func (u *UnsafeDiskAccessSimulator) SimulateDiskAccess() {
-	util.SimulateSyncIoLoad(u.accessTimeMs)
+	SimulateSyncIoLoad(u.accessTimeMs)
 }
 
 type ThreadSafeDiskAccessSimulator struct {
@@ -36,9 +35,9 @@ func NewThreadSafeDiskAccessSimulator(accessTimeMs int) *ThreadSafeDiskAccessSim
 }
 
 func (t *ThreadSafeDiskAccessSimulator) SimulateDiskAccess() {
-	util.SimulateSyncIoLoad(t.accessTimeMs)
+	SimulateSyncIoLoad(t.accessTimeMs)
 	t.lock.Lock()
 	// Writing to the log file
-	util.SimulateCpuLoad(10)
+	SimulateCpuLoad(10)
 	t.lock.Unlock()
 }

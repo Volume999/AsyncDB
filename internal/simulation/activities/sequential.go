@@ -1,7 +1,6 @@
 package activities
 
 import (
-	"AsyncDB/pkg/util"
 	"math/rand"
 )
 
@@ -25,24 +24,24 @@ func (s *SequentialSimulator) ValidateAvailability() {
 	orderItemsCnt := s.config.OrderItemsCnt
 	for range orderItemsCnt {
 		s.disk.SimulateDiskAccess() // Load to get the item availability
-		util.SimulateCpuLoad(100)   // Merge SKU Items
+		SimulateCpuLoad(100)        // Merge SKU Items
 	}
 	skuItemsCnt := s.config.SKUItemsCnt
 	for range skuItemsCnt {
 		s.disk.SimulateDiskAccess() // Load to get the SKU availability
-		util.SimulateCpuLoad(100)   // Some operations on SKU Items
+		SimulateCpuLoad(100)        // Some operations on SKU Items
 	}
 }
 
 func (s *SequentialSimulator) VerifyCustomer() {
 	s.disk.SimulateDiskAccess() // Load to get the customer details
-	util.SimulateCpuLoad(100)
+	SimulateCpuLoad(100)
 	appliedOffersCnt := s.config.AppliedOffersCnt
 	for range appliedOffersCnt {
 		isLimitedUse := rand.Intn(2) == 0
 		if isLimitedUse {
 			s.disk.SimulateDiskAccess() // Get uses by customer
-			util.SimulateCpuLoad(1000)
+			SimulateCpuLoad(1000)
 		}
 	}
 }
@@ -54,7 +53,7 @@ func (s *SequentialSimulator) ValidatePayment() {
 		isActive := rand.Intn(10) < 4
 		if isActive {
 			s.disk.SimulateDiskAccess() // Make new transaction
-			util.SimulateCpuLoad(10000)
+			SimulateCpuLoad(10000)
 			s.disk.SimulateDiskAccess()
 			s.disk.SimulateDiskAccess()
 		}
@@ -67,7 +66,7 @@ func (s *SequentialSimulator) ValidateProductOption() {
 
 func (s *SequentialSimulator) RecordOffer() {
 	s.disk.SimulateDiskAccess() // Get Order
-	util.SimulateCpuLoad(10000)
+	SimulateCpuLoad(10000)
 }
 
 func (s *SequentialSimulator) CommitTax() {
@@ -80,7 +79,7 @@ func (s *SequentialSimulator) DecrementInventory() {
 	orderItemsCnt := s.config.OrderItemsCnt
 	for range orderItemsCnt {
 		s.disk.SimulateDiskAccess() // put Item
-		util.SimulateCpuLoad(1000)  // Merge SKU Items
+		SimulateCpuLoad(1000)       // Merge SKU Items
 		s.disk.SimulateDiskAccess() // put SKU
 	}
 }
