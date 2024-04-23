@@ -47,16 +47,16 @@ func NewAsyncDB(tManager TransactionManager, lManager LockManager, hasher Hasher
 
 func (p *AsyncDB) Connect() (*ConnectionContext, error) {
 	guid := uuid.New()
-	return &ConnectionContext{ID: guid}, nil
+	return &ConnectionContext{ID: guid, Txn: &TransactInfo{tId: TransactId(uuid.Nil), mode: Ready, ts: 0}}, nil
 }
 
 func (p *AsyncDB) Disconnect(context *ConnectionContext) error {
-	var rollbackErr, lockReleaseErr error
+	var rollbackErr error
+	// Todo: this is not good
 	if context.Txn != nil {
 		rollbackErr = p.RollbackTransaction(context)
 	}
-	lockReleaseErr = p.lManager.ReleaseLocks(TransactId(context.ID))
-	return errors.Join(rollbackErr, lockReleaseErr)
+	return rollbackErr
 }
 
 func (p *AsyncDB) CreateTable(_ *ConnectionContext, table Table) error {
