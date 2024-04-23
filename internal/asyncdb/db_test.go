@@ -659,6 +659,27 @@ func (s *DMLSuite) TestAsyncDB_ConcurrentOperation_Should_End_When_Rollback() {
 	}
 }
 
+func (s *DMLSuite) TestAsyncDB_When_Commit_Concurrent_Operations_Should_Finish() {
+	db := s.db
+	ctx := s.ctx
+	_ = db.BeginTransaction(ctx)
+	ctx2, _ := db.Connect()
+	_ = db.BeginTransaction(ctx2)
+	<-db.Put(ctx2, "test", 1, 2)
+	db.Put(ctx, "test", 1, 3)
+	time.Sleep(10 * time.Millisecond)
+	wait := make(chan struct{})
+	go func() {
+		defer close(wait)
+		db.CommitTransaction(ctx)
+	}()
+	_ = db.CommitTransaction(ctx2)
+	<-wait
+	val := <-db.Get(ctx, "test", 1)
+	s.Nil(val.Err)
+	s.Equal(3, val.Data)
+}
+
 func TestDDLSuite(t *testing.T) {
 	suite.Run(t, new(DDLSuite))
 }

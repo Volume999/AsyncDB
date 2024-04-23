@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dlsniper/debugger"
 	"github.com/google/uuid"
+	"sync"
 	"time"
 )
 
@@ -36,18 +37,26 @@ type Hasher interface {
 }
 
 type AsyncDB struct {
-	data     *ThreadSafeMap[uint64, Table]
-	tManager TransactionManager
-	lManager LockManager
-	hasher   Hasher
+	data             *ThreadSafeMap[uint64, Table]
+	tManager         TransactionManager
+	lManager         LockManager
+	hasher           Hasher
+	currentProcesses *ThreadSafeMap[uuid.UUID, *sync.WaitGroup]
 }
 
 func NewAsyncDB(tManager TransactionManager, lManager LockManager, hasher Hasher) *AsyncDB {
-	return &AsyncDB{tManager: tManager, lManager: lManager, data: NewThreadSafeMap[uint64, Table](), hasher: hasher}
+	return &AsyncDB{
+		tManager:         tManager,
+		lManager:         lManager,
+		data:             NewThreadSafeMap[uint64, Table](),
+		hasher:           hasher,
+		currentProcesses: NewThreadSafeMap[uuid.UUID, *sync.WaitGroup](),
+	}
 }
 
 func (p *AsyncDB) Connect() (*ConnectionContext, error) {
 	guid := uuid.New()
+	p.currentProcesses.Put(guid, &sync.WaitGroup{})
 	return &ConnectionContext{ID: guid, Txn: &TransactInfo{tId: TransactId(uuid.Nil), mode: Ready, ts: 0}}, nil
 }
 
@@ -94,6 +103,8 @@ func (p *AsyncDB) DropTable(_ *ConnectionContext, tableName string) error {
 
 func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{}, value interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
+	wg, _ := p.currentProcesses.Get(ctx.ID)
+	wg.Add(1)
 	go func() {
 		hash := p.hasher.HashStringUint64(tableName)
 		table, ok := p.data.Get(hash)
@@ -102,6 +113,7 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 				Data: nil,
 				Err:  fmt.Errorf("%w - %s", ErrTableNotFound, tableName),
 			}
+			wg.Done()
 			return
 		}
 		err := table.ValidateTypes(key, value)
@@ -110,6 +122,7 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 				Data: nil,
 				Err:  err,
 			}
+			wg.Done()
 			return
 		}
 		implTransaction := false
@@ -128,6 +141,7 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 				Data: nil,
 				Err:  err,
 			}
+			wg.Done()
 			return
 		}
 		tLog, err := p.tManager.GetLog(ctx.ID)
@@ -140,6 +154,7 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 				Data: nil,
 				Err:  ErrXactAborted,
 			}
+			wg.Done()
 			return
 		}
 		if err != nil {
@@ -148,6 +163,7 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 				Data: nil,
 				Err:  err,
 			}
+			wg.Done()
 			return
 		}
 		// TODO: Want to handle some errors?
@@ -157,6 +173,7 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 			Key:     key,
 			Value:   value,
 		})
+		wg.Done()
 		if implTransaction {
 			err = p.CommitTransaction(ctx)
 		}
@@ -170,6 +187,8 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 
 func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
+	wg, _ := p.currentProcesses.Get(ctx.ID)
+	wg.Add(1)
 	go func() {
 		implTransaction := false
 		txnId, err := p.tManager.StartTransaction(ctx.ID)
@@ -185,6 +204,7 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 				Data: nil,
 				Err:  err,
 			}
+			wg.Done()
 			return
 		}
 		hash := p.hasher.HashStringUint64(tableName)
@@ -197,6 +217,7 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 				Data: nil,
 				Err:  ErrXactAborted,
 			}
+			wg.Done()
 			return
 		}
 		if err != nil {
@@ -205,9 +226,11 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 				Data: nil,
 				Err:  err,
 			}
+			wg.Done()
 			return
 		}
 		res := <-p.getValue(ctx, tableName, key)
+		wg.Done()
 		if implTransaction {
 			err = p.CommitTransaction(ctx)
 		}
@@ -222,6 +245,8 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
 	hash := p.hasher.HashStringUint64(tableName)
+	wg, _ := p.currentProcesses.Get(ctx.ID)
+	wg.Add(1)
 	go func() {
 		var err error
 		implTransaction := false
@@ -238,6 +263,7 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 				Data: nil,
 				Err:  err,
 			}
+			wg.Done()
 			return
 		}
 		err = p.lManager.Lock(WriteLock, ctx.Txn.tId, ctx.Txn.ts, TableId(hash), key)
@@ -249,6 +275,7 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 				Data: nil,
 				Err:  ErrXactAborted,
 			}
+			wg.Done()
 			return
 		}
 		if err != nil {
@@ -257,6 +284,7 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 				Data: nil,
 				Err:  err,
 			}
+			wg.Done()
 			return
 		}
 		res := <-p.getValue(ctx, tableName, key)
@@ -265,8 +293,10 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 				Data: nil,
 				Err:  res.Err,
 			}
+			wg.Done()
 			return
 		}
+		wg.Done()
 		tLog, err := p.tManager.GetLog(ctx.ID)
 		tLog.addAction(Action{
 			Op:      LDelete,
@@ -287,6 +317,9 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 
 func (p *AsyncDB) BeginTransaction(ctx *ConnectionContext) error {
 	txn, err := p.tManager.StartTransaction(ctx.ID)
+
+	// Ideally would check if there are no running processes, but it's safer to just replace it
+	p.currentProcesses.Put(ctx.ID, &sync.WaitGroup{})
 	if err != nil {
 		return err
 	}
@@ -296,7 +329,11 @@ func (p *AsyncDB) BeginTransaction(ctx *ConnectionContext) error {
 
 func (p *AsyncDB) CommitTransaction(ctx *ConnectionContext) error {
 	// Todo: Check the current state of transaction?
-	// Todo: Wait for concurrent queries to finish?
+	// Wait for concurrent queries to finish
+
+	wg, _ := p.currentProcesses.Get(ctx.ID)
+	wg.Wait()
+
 	tLog, err := p.tManager.GetLog(ctx.ID)
 	if err != nil {
 		return err
@@ -312,6 +349,7 @@ func (p *AsyncDB) CommitTransaction(ctx *ConnectionContext) error {
 }
 
 func (p *AsyncDB) abortTransaction(ctx *ConnectionContext) error {
+	p.currentProcesses.Put(ctx.ID, &sync.WaitGroup{})
 	ctx.Txn.mode = Aborting
 	err := p.lManager.ReleaseLocks(ctx.Txn.tId)
 	err = errors.Join(err, p.tManager.DeleteLog(ctx.ID))
@@ -320,6 +358,7 @@ func (p *AsyncDB) abortTransaction(ctx *ConnectionContext) error {
 }
 
 func (p *AsyncDB) RollbackTransaction(ctx *ConnectionContext) error {
+	p.currentProcesses.Put(ctx.ID, &sync.WaitGroup{})
 	ctx.Txn.mode = Aborting
 	// Todo: Cancel concurrent queries?
 	err := p.lManager.ReleaseLocks(ctx.Txn.tId)
@@ -330,6 +369,7 @@ func (p *AsyncDB) RollbackTransaction(ctx *ConnectionContext) error {
 
 // TODO: Implement this
 func (p *AsyncDB) applyLogs(log *TransactionLog) error {
+	// Todo: Add validation for the transaction log before applying
 	// Todo: I should not do it this way, it is better to implement a Range function of some sort
 	log.l.Lock()
 	defer log.l.Unlock()
