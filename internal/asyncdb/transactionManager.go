@@ -98,7 +98,9 @@ func (t *TransactionManagerImpl) GetLog(ConnId uuid.UUID) (*TransactionLog, erro
 }
 
 func (t *TransactionManagerImpl) DeleteLog(ConnId uuid.UUID) error {
-	txn, ok := t.tLogs.Get(ConnId)
+	t.tLogs.Lock()
+	defer t.tLogs.Unlock()
+	txn, ok := t.tLogs.GetUnsafe(ConnId)
 	if !ok {
 		return ErrConnNotInXact
 	}

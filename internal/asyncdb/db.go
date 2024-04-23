@@ -29,6 +29,7 @@ type ConnectionContext struct {
 
 var ErrTableExists = errors.New("table already exists")
 var ErrTableNotFound = errors.New("table not found")
+var ErrXactAborted = errors.New("transaction aborted")
 
 type Hasher interface {
 	HashStringUint64(string) uint64
@@ -131,7 +132,18 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 		}
 		tLog, err := p.tManager.GetLog(ctx.ID)
 		err = p.lManager.Lock(WriteLock, ctx.Txn.tId, ctx.Txn.ts, TableId(hash), key)
+		// TODO: Change this logic
+		// Locks are released only when the transaction is aborted
+		// This is temporary, in the future we need a better way of handling this
+		if errors.Is(err, ErrLocksReleased) {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  ErrXactAborted,
+			}
+			return
+		}
 		if err != nil {
+			p.abortTransaction(ctx)
 			resultChan <- databases.RequestResult{
 				Data: nil,
 				Err:  err,
@@ -177,7 +189,18 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 		}
 		hash := p.hasher.HashStringUint64(tableName)
 		err = p.lManager.Lock(WriteLock, ctx.Txn.tId, ctx.Txn.ts, TableId(hash), key)
+		// TODO: Change this logic
+		// Locks are released only when the transaction is aborted
+		// This is temporary, in the future we need a better way of handling this
+		if errors.Is(err, ErrLocksReleased) {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  ErrXactAborted,
+			}
+			return
+		}
 		if err != nil {
+			p.abortTransaction(ctx)
 			resultChan <- databases.RequestResult{
 				Data: nil,
 				Err:  err,
@@ -218,7 +241,18 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 			return
 		}
 		err = p.lManager.Lock(WriteLock, ctx.Txn.tId, ctx.Txn.ts, TableId(hash), key)
+		// TODO: Change this logic
+		// Locks are released only when the transaction is aborted
+		// This is temporary, in the future we need a better way of handling this
+		if errors.Is(err, ErrLocksReleased) {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  ErrXactAborted,
+			}
+			return
+		}
 		if err != nil {
+			p.abortTransaction(ctx)
 			resultChan <- databases.RequestResult{
 				Data: nil,
 				Err:  err,
@@ -227,7 +261,6 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 		}
 		res := <-p.getValue(ctx, tableName, key)
 		if res.Err != nil {
-			err = p.RollbackTransaction(ctx)
 			resultChan <- databases.RequestResult{
 				Data: nil,
 				Err:  res.Err,

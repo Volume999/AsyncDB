@@ -227,11 +227,11 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 	//lm.m.Unlock()
 	lm.transactMap.Lock()
 	transactLocks, ok := lm.transactMap.GetUnsafe(tid)
+	lm.transactMap.DeleteUnsafe(tid)
+	lm.transactMap.Unlock()
 	if !ok {
 		return nil
 	}
-	lm.transactMap.DeleteUnsafe(tid)
-	lm.transactMap.Unlock()
 	transactLocks.Lock()
 	for tableId, locks := range transactLocks.m {
 		//if _, ok := lm.lockMap[tableId]; !ok {

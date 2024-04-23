@@ -1,6 +1,7 @@
 package asyncdb
 
 import (
+	"AsyncDB/internal/databases"
 	"errors"
 	"github.com/stretchr/testify/suite"
 	"sync"
@@ -586,6 +587,76 @@ func (s *DMLSuite) TestAsyncDB_Data_Consistency() {
 	val := <-db.Get(ctx_start, "test", 1)
 	s.Nil(val.Err)
 	s.Equal(threads*iters, val.Data)
+}
+
+func (s *DMLSuite) TestAsyncDB_When_Lock_Conflict_Should_Abort_Transaction() {
+	cases := []string{"Put", "Get", "Delete"}
+	for _, c := range cases {
+		s.Run(c, func() {
+			db := s.db
+			ctx := s.ctx
+			_ = db.BeginTransaction(ctx)
+			ctx2, _ := db.Connect()
+			_ = db.BeginTransaction(ctx2)
+			<-db.Put(ctx, "test", 1, 2)
+			switch c {
+			case "Put":
+				<-db.Put(ctx2, "test", 1, 3)
+			case "Get":
+				<-db.Get(ctx2, "test", 1)
+			case "Delete":
+				<-db.Delete(ctx2, "test", 1)
+			}
+			s.EqualError(db.BeginTransaction(ctx2), "connection in transaction")
+		})
+	}
+}
+
+func (s *DMLSuite) TestAsyncDB_ConcurrentOperation_Should_End_When_Rollback() {
+	cases := []string{"Put", "Get", "Delete"}
+	for _, c := range cases {
+		s.Run(c, func() {
+			db := s.db
+			ctx := s.ctx
+			ctx2, _ := db.Connect()
+			_ = db.BeginTransaction(ctx)
+			time.Sleep(1 * time.Millisecond)
+			_ = db.BeginTransaction(ctx2)
+			<-db.Put(ctx2, "test", 1, 2)
+			aborted := make(chan struct{})
+			go func() {
+				defer close(aborted)
+				var ch <-chan databases.RequestResult
+				switch c {
+				case "Put":
+					ch = db.Put(ctx, "test", 1, 3)
+				case "Get":
+					ch = db.Get(ctx, "test", 1)
+				case "Delete":
+					ch = db.Delete(ctx, "test", 1)
+				}
+				s.Eventually(func() bool {
+					select {
+					case res := <-ch:
+						return s.EqualError(res.Err, "transaction aborted")
+					default:
+						return false
+					}
+				}, time.Second, 100*time.Millisecond)
+			}()
+			time.Sleep(10 * time.Millisecond)
+			_ = db.RollbackTransaction(ctx)
+			s.Eventually(func() bool {
+				select {
+				case <-aborted:
+					return true
+				default:
+					return false
+				}
+			}, time.Second, 100*time.Millisecond)
+			_ = db.CommitTransaction(ctx2)
+		})
+	}
 }
 
 func TestDDLSuite(t *testing.T) {
