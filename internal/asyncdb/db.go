@@ -31,6 +31,7 @@ type ConnectionContext struct {
 var ErrTableExists = errors.New("table already exists")
 var ErrTableNotFound = errors.New("table not found")
 var ErrXactAborted = errors.New("transaction aborted")
+var ErrXactInTerminalState = errors.New("transaction in terminal state")
 
 type Hasher interface {
 	HashStringUint64(string) uint64
@@ -103,6 +104,13 @@ func (p *AsyncDB) DropTable(_ *ConnectionContext, tableName string) error {
 
 func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{}, value interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
+	if ctx.Txn.mode == Committing || ctx.Txn.mode == Aborting {
+		resultChan <- databases.RequestResult{
+			Data: nil,
+			Err:  ErrXactInTerminalState,
+		}
+		return resultChan
+	}
 	wg, _ := p.currentProcesses.Get(ctx.ID)
 	wg.Add(1)
 	go func() {
@@ -158,12 +166,12 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 			return
 		}
 		if err != nil {
+			wg.Done()
 			p.abortTransaction(ctx)
 			resultChan <- databases.RequestResult{
 				Data: nil,
 				Err:  err,
 			}
-			wg.Done()
 			return
 		}
 		// TODO: Want to handle some errors?
@@ -187,6 +195,13 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 
 func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
+	if ctx.Txn.mode == Committing || ctx.Txn.mode == Aborting {
+		resultChan <- databases.RequestResult{
+			Data: nil,
+			Err:  ErrXactInTerminalState,
+		}
+		return resultChan
+	}
 	wg, _ := p.currentProcesses.Get(ctx.ID)
 	wg.Add(1)
 	go func() {
@@ -221,12 +236,12 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 			return
 		}
 		if err != nil {
+			wg.Done()
 			p.abortTransaction(ctx)
 			resultChan <- databases.RequestResult{
 				Data: nil,
 				Err:  err,
 			}
-			wg.Done()
 			return
 		}
 		res := <-p.getValue(ctx, tableName, key)
@@ -244,6 +259,13 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 
 func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
+	if ctx.Txn.mode == Committing || ctx.Txn.mode == Aborting {
+		resultChan <- databases.RequestResult{
+			Data: nil,
+			Err:  ErrXactInTerminalState,
+		}
+		return resultChan
+	}
 	hash := p.hasher.HashStringUint64(tableName)
 	wg, _ := p.currentProcesses.Get(ctx.ID)
 	wg.Add(1)
@@ -279,12 +301,12 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 			return
 		}
 		if err != nil {
+			wg.Done()
 			p.abortTransaction(ctx)
 			resultChan <- databases.RequestResult{
 				Data: nil,
 				Err:  err,
 			}
-			wg.Done()
 			return
 		}
 		res := <-p.getValue(ctx, tableName, key)
@@ -330,6 +352,7 @@ func (p *AsyncDB) BeginTransaction(ctx *ConnectionContext) error {
 func (p *AsyncDB) CommitTransaction(ctx *ConnectionContext) error {
 	// Todo: Check the current state of transaction?
 	// Wait for concurrent queries to finish
+	ctx.Txn.mode = Committing
 
 	wg, _ := p.currentProcesses.Get(ctx.ID)
 	wg.Wait()
@@ -338,32 +361,33 @@ func (p *AsyncDB) CommitTransaction(ctx *ConnectionContext) error {
 	if err != nil {
 		return err
 	}
-	ctx.Txn.mode = Committing
 	// Todo: Error handling?
 	// Todo: this is disgusting
 	err = errors.Join(err, p.applyLogs(tLog))
 	err = errors.Join(err, p.lManager.ReleaseLocks(ctx.Txn.tId))
 	err = errors.Join(err, p.tManager.EndTransaction(ctx.ID))
-	ctx.Txn = &TransactInfo{tId: TransactId(uuid.Nil), mode: Ready}
+	ctx.Txn = &TransactInfo{tId: TransactId(uuid.Nil), ts: 0, mode: Ready}
 	return err
 }
 
 func (p *AsyncDB) abortTransaction(ctx *ConnectionContext) error {
-	p.currentProcesses.Put(ctx.ID, &sync.WaitGroup{})
 	ctx.Txn.mode = Aborting
+	wg, _ := p.currentProcesses.Get(ctx.ID)
 	err := p.lManager.ReleaseLocks(ctx.Txn.tId)
+	wg.Wait()
 	err = errors.Join(err, p.tManager.DeleteLog(ctx.ID))
-	ctx.Txn.mode = Ready
+	ctx.Txn.mode = Active
 	return err
 }
 
 func (p *AsyncDB) RollbackTransaction(ctx *ConnectionContext) error {
-	p.currentProcesses.Put(ctx.ID, &sync.WaitGroup{})
 	ctx.Txn.mode = Aborting
-	// Todo: Cancel concurrent queries?
+	wg, _ := p.currentProcesses.Get(ctx.ID)
+	// Todo: Figure out how to cancel queries, instead of waiting for them to finish
 	err := p.lManager.ReleaseLocks(ctx.Txn.tId)
+	wg.Wait()
 	err = errors.Join(err, p.tManager.EndTransaction(ctx.ID))
-	ctx.Txn.mode = Ready
+	ctx.Txn = &TransactInfo{tId: TransactId(uuid.Nil), ts: 0, mode: Ready}
 	return err
 }
 

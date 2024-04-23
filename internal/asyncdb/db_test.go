@@ -680,6 +680,56 @@ func (s *DMLSuite) TestAsyncDB_When_Commit_Concurrent_Operations_Should_Finish()
 	s.Equal(3, val.Data)
 }
 
+func (s *DMLSuite) TestAsyncDB_When_Commit_Operations_Cannot_Be_Submitted() {
+	db := s.db
+	ctx := s.ctx
+	wait := make(chan struct{})
+	_ = db.BeginTransaction(ctx)
+	go func() {
+		for {
+			db.Put(ctx, "test", 1, 2)
+		}
+	}()
+	time.Sleep(1 * time.Millisecond)
+	go func() {
+		defer close(wait)
+		_ = db.CommitTransaction(ctx)
+	}()
+	s.Eventually(func() bool {
+		select {
+		case <-wait:
+			return true
+		default:
+			return false
+		}
+	}, time.Second, 100*time.Millisecond)
+}
+
+func (s *DMLSuite) TestAsyncDB_When_Rollback_Operations_Cannot_Be_Submitted() {
+	db := s.db
+	ctx := s.ctx
+	wait := make(chan struct{})
+	_ = db.BeginTransaction(ctx)
+	go func() {
+		for {
+			db.Put(ctx, "test", 1, 2)
+		}
+	}()
+	time.Sleep(1 * time.Millisecond)
+	go func() {
+		defer close(wait)
+		_ = db.RollbackTransaction(ctx)
+	}()
+	s.Eventually(func() bool {
+		select {
+		case <-wait:
+			return true
+		default:
+			return false
+		}
+	}, time.Second, 100*time.Millisecond)
+}
+
 func TestDDLSuite(t *testing.T) {
 	suite.Run(t, new(DDLSuite))
 }
