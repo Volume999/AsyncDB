@@ -16,15 +16,15 @@ func NewAsyncDBLoader(db *asyncdb.AsyncDB, data *dataloaders.GeneratedData) *Asy
 }
 
 func (a *AsyncDBLoader) Load() {
-	warehouses, _ := asyncdb.NewGenericTable[models.WarehousePK, models.Warehouse]("Warehouse")
-	districts, _ := asyncdb.NewGenericTable[models.DistrictPK, models.District]("District")
-	customers, _ := asyncdb.NewGenericTable[models.CustomerPK, models.Customer]("Customer")
-	history, _ := asyncdb.NewGenericTable[models.HistoryPK, models.History]("History")
-	newOrders, _ := asyncdb.NewGenericTable[models.NewOrderPK, models.NewOrder]("NewOrder")
-	orders, _ := asyncdb.NewGenericTable[models.OrderPK, models.Order]("Order")
-	orderLines, _ := asyncdb.NewGenericTable[models.OrderLinePK, models.OrderLine]("OrderLine")
-	items, _ := asyncdb.NewGenericTable[models.ItemPK, models.Item]("Item")
-	stocks, _ := asyncdb.NewGenericTable[models.StockPK, models.Stock]("Stock")
+	warehouses, _ := asyncdb.NewInMemoryTable[models.WarehousePK, models.Warehouse]("Warehouse")
+	districts, _ := asyncdb.NewInMemoryTable[models.DistrictPK, models.District]("District")
+	customers, _ := asyncdb.NewInMemoryTable[models.CustomerPK, models.Customer]("Customer")
+	history, _ := asyncdb.NewInMemoryTable[models.HistoryPK, models.History]("History")
+	newOrders, _ := asyncdb.NewInMemoryTable[models.NewOrderPK, models.NewOrder]("NewOrder")
+	orders, _ := asyncdb.NewInMemoryTable[models.OrderPK, models.Order]("Order")
+	orderLines, _ := asyncdb.NewInMemoryTable[models.OrderLinePK, models.OrderLine]("OrderLine")
+	items, _ := asyncdb.NewInMemoryTable[models.ItemPK, models.Item]("Item")
+	stocks, _ := asyncdb.NewInMemoryTable[models.StockPK, models.Stock]("Stock")
 	tables := []asyncdb.Table{
 		warehouses,
 		districts,

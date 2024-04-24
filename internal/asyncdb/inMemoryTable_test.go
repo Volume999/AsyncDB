@@ -5,20 +5,20 @@ import (
 	"testing"
 )
 
-func TestAsyncDB_NewGenericTable_Should_Fail_When_Empty_Name(t *testing.T) {
+func TestAsyncDB_NewInMemoryTable_Should_Fail_When_Empty_Name(t *testing.T) {
 	tableName := ""
-	_, err := NewGenericTable[int, int](tableName)
+	_, err := NewInMemoryTable[int, int](tableName)
 	assert.EqualError(t, err, "table name cannot be empty")
 }
 
-func TestGenericTable_Name(t *testing.T) {
+func TestInMemoryTable_Name(t *testing.T) {
 	tableName := "test"
-	table, _ := NewGenericTable[int, int](tableName)
+	table, _ := NewInMemoryTable[int, int](tableName)
 	got := table.Name()
 	assert.Equal(t, tableName, got)
 }
 
-func TestGenericTable_Put(t *testing.T) {
+func TestInMemoryTable_Put(t *testing.T) {
 	cases := []struct {
 		name      string
 		key       interface{}
@@ -46,7 +46,7 @@ func TestGenericTable_Put(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			table, _ := NewGenericTable[int, int]("test")
+			table, _ := NewInMemoryTable[int, int]("test")
 			err := table.Put(c.key, c.value)
 			if c.errorWant != "" {
 				assert.EqualError(t, err, c.errorWant)
@@ -57,7 +57,7 @@ func TestGenericTable_Put(t *testing.T) {
 	}
 }
 
-func TestGenericTable_Get(t *testing.T) {
+func TestInMemoryTable_Get(t *testing.T) {
 	cases := []struct {
 		name      string
 		putKey    interface{}
@@ -93,7 +93,7 @@ func TestGenericTable_Get(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			table, _ := NewGenericTable[int, int]("test")
+			table, _ := NewInMemoryTable[int, int]("test")
 			_ = table.Put(c.putKey, c.putValue)
 			val, err := table.Get(c.getKey)
 			if c.errorWant != "" {

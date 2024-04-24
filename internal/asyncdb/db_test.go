@@ -39,7 +39,7 @@ func (s *DDLSuite) TestAsyncDB_CreateTable() {
 		s.Run(c.name, func() {
 			db := s.db
 			ctx := s.ctx
-			table, _ := NewGenericTable[int, int](c.tableName)
+			table, _ := NewInMemoryTable[int, int](c.tableName)
 			err := db.CreateTable(ctx, table)
 			if c.errorWant == "" {
 				s.Nil(err)
@@ -53,9 +53,9 @@ func (s *DDLSuite) TestAsyncDB_CreateTable() {
 func (s *DDLSuite) TestAsyncDB_CreateTable_Fails_When_DuplicateTables() {
 	db := s.db
 	ctx := s.ctx
-	table, _ := NewGenericTable[int, int]("test")
+	table, _ := NewInMemoryTable[int, int]("test")
 	_ = db.CreateTable(ctx, table)
-	table, _ = NewGenericTable[int, int]("test")
+	table, _ = NewInMemoryTable[int, int]("test")
 	err := db.CreateTable(ctx, table)
 	s.EqualError(err, "table already exists - test")
 }
@@ -63,8 +63,8 @@ func (s *DDLSuite) TestAsyncDB_CreateTable_Fails_When_DuplicateTables() {
 func (s *DDLSuite) TestAsyncDB_ListTables() {
 	db := s.db
 	ctx := s.ctx
-	table, _ := NewGenericTable[int, int]("test")
-	table2, _ := NewGenericTable[int, int]("test2")
+	table, _ := NewInMemoryTable[int, int]("test")
+	table2, _ := NewInMemoryTable[int, int]("test2")
 	_ = db.CreateTable(ctx, table)
 	_ = db.CreateTable(ctx, table2)
 	tables := db.ListTables(ctx)
@@ -96,7 +96,7 @@ func (s *DDLSuite) TestAsyncDB_DeleteTable() {
 		s.Run(c.name, func() {
 			db := s.db
 			ctx := s.ctx
-			table, _ := NewGenericTable[int, int](c.tableName)
+			table, _ := NewInMemoryTable[int, int](c.tableName)
 			_ = db.CreateTable(ctx, table)
 			err := db.DropTable(ctx, c.deleteTableName)
 			if c.errorWant == "" {
@@ -150,8 +150,8 @@ func (s *DMLSuite) SetupTest() {
 	s.db = NewAsyncDB(tm, lm, h)
 	ctx, _ := s.db.Connect()
 	s.ctx = ctx
-	table1, _ := NewGenericTable[int, int]("test")
-	table2, _ := NewGenericTable[int, int]("test2")
+	table1, _ := NewInMemoryTable[int, int]("test")
+	table2, _ := NewInMemoryTable[int, int]("test2")
 	_ = s.db.CreateTable(s.ctx, table1)
 	_ = s.db.CreateTable(s.ctx, table2)
 }
