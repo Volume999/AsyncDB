@@ -17,26 +17,26 @@ type Table interface {
 	ValidateTypes(key interface{}, value interface{}) error
 }
 
-type GenericTable[K comparable, V any] struct {
+type InMemoryTable[K comparable, V any] struct {
 	name string
 	data map[K]V
 }
 
-func NewGenericTable[K comparable, V any](name string) (*GenericTable[K, V], error) {
+func NewGenericTable[K comparable, V any](name string) (*InMemoryTable[K, V], error) {
 	if name == "" {
 		return nil, ErrEmptyTableName
 	}
-	return &GenericTable[K, V]{
+	return &InMemoryTable[K, V]{
 		name: name,
 		data: make(map[K]V),
 	}, nil
 }
 
-func (t *GenericTable[K, V]) Name() string {
+func (t *InMemoryTable[K, V]) Name() string {
 	return t.name
 }
 
-func (t *GenericTable[K, V]) Get(key interface{}) (value interface{}, err error) {
+func (t *InMemoryTable[K, V]) Get(key interface{}) (value interface{}, err error) {
 	keyTyped, ok := key.(K)
 	if !ok {
 		return nil, fmt.Errorf("%w: expected key type - %T, got - %T", ErrTypeMismatch, *new(K), key)
@@ -48,7 +48,7 @@ func (t *GenericTable[K, V]) Get(key interface{}) (value interface{}, err error)
 	return v, nil
 }
 
-func (t *GenericTable[K, V]) Put(key interface{}, value interface{}) error {
+func (t *InMemoryTable[K, V]) Put(key interface{}, value interface{}) error {
 	keyTyped, keyOk := key.(K)
 	if !keyOk {
 		return fmt.Errorf("%w: expected key type - %T, got - %T", ErrTypeMismatch, *new(K), key)
@@ -61,7 +61,7 @@ func (t *GenericTable[K, V]) Put(key interface{}, value interface{}) error {
 	return nil
 }
 
-func (t *GenericTable[K, V]) Delete(key interface{}) error {
+func (t *InMemoryTable[K, V]) Delete(key interface{}) error {
 	keyTyped, ok := key.(K)
 	if !ok {
 		return fmt.Errorf("%w: %T", ErrTypeMismatch, key)
@@ -70,7 +70,7 @@ func (t *GenericTable[K, V]) Delete(key interface{}) error {
 	return nil
 }
 
-func (t *GenericTable[K, V]) ValidateTypes(key interface{}, value interface{}) error {
+func (t *InMemoryTable[K, V]) ValidateTypes(key interface{}, value interface{}) error {
 	_, keyOk := key.(K)
 	if !keyOk {
 		return fmt.Errorf("%w: expected key type - %T, got - %T", ErrTypeMismatch, *new(K), key)
@@ -84,7 +84,7 @@ func (t *GenericTable[K, V]) ValidateTypes(key interface{}, value interface{}) e
 	return nil
 }
 
-func LoadTable[K comparable, V any](name string, data map[K]V, table *GenericTable[K, V]) {
+func LoadTable[K comparable, V any](name string, data map[K]V, table *InMemoryTable[K, V]) {
 	table.name = name
 	table.data = data
 }
