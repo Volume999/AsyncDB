@@ -1,8 +1,9 @@
 package simulation
 
 import (
-	"AsyncDB/simulation/activities"
+	"AsyncDB/simulation/simulator"
 	"AsyncDB/simulation/workflows"
+	"AsyncDB/simulation/workload"
 	"runtime"
 	"strconv"
 	"sync/atomic"
@@ -10,31 +11,31 @@ import (
 	"time"
 )
 
-var config = activities.RandomConfig()
+var config = RandomConfig()
 
-func diskByType(diskType string, accessTimeMs int) activities.DiskAccessSimulator {
+func diskByType(diskType string, accessTimeMs int) workload.DiskAccessSimulator {
 	switch diskType {
 	case "unsafe":
-		return activities.NewUnsafeDiskAccessSimulator(accessTimeMs)
+		return workload.NewUnsafeDiskAccessSimulator(accessTimeMs)
 	case "thread-safe":
-		return activities.NewThreadSafeDiskAccessSimulator(accessTimeMs)
+		return workload.NewThreadSafeDiskAccessSimulator(accessTimeMs)
 	default:
 		panic("Invalid disk type")
 	}
 }
 
-func simulatorByType(simulatorType string, config *activities.Config, disk activities.DiskAccessSimulator) activities.Simulator {
+func simulatorByType(simulatorType string, config *Config, disk workload.DiskAccessSimulator) simulator.Simulator {
 	switch simulatorType {
 	case "sequential":
-		return activities.NewSequentialSimulator(config, disk)
+		return simulator.NewSequentialSimulator(config, disk)
 	case "async":
-		return activities.NewAsyncSimulator(config, disk)
+		return simulator.NewAsyncSimulator(config, disk)
 	default:
 		panic("Invalid simulator type")
 	}
 }
 
-func workflowByType(workflowType string, simulator activities.Simulator) workflows.Workflow {
+func workflowByType(workflowType string, simulator simulator.Simulator) workflows.Workflow {
 	switch workflowType {
 	case "sequential":
 		return workflows.NewSequentialWorkflow(simulator)
@@ -74,7 +75,7 @@ func BenchmarkWorkflows(b *testing.B) {
 									disk := diskByType(diskT, diskAccessTime)
 									simulator := simulatorByType(simulatorT, config, disk)
 									if lockCountT > 0 {
-										simulator = activities.NewSimulatorWithContention(simulator, lockCountT)
+										simulator = simulator.NewSimulatorWithContention(simulator, lockCountT)
 									}
 									workflow := workflowByType(workflowT, simulator)
 									if limitConnectionsT > 0 {

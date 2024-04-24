@@ -1,15 +1,17 @@
 package main
 
 import (
-	"AsyncDB/simulation/activities"
+	"AsyncDB/simulation"
+	"AsyncDB/simulation/simulator"
 	"AsyncDB/simulation/workflows"
+	"AsyncDB/simulation/workload"
 	"fmt"
 	"sync"
 )
 
 func main() {
-	disk := activities.NewThreadSafeDiskAccessSimulator(300)
-	simulator := activities.NewSequentialSimulator(activities.RandomConfig(), disk)
+	disk := workload.NewThreadSafeDiskAccessSimulator(300)
+	simulator := simulator.NewSequentialSimulator(simulation.RandomConfig(), disk)
 	workflow := workflows.NewSequentialWorkflow(simulator)
 	limit := workflows.NewLimitedConnectionsWorkflow(workflow, 10)
 	wg := &sync.WaitGroup{}

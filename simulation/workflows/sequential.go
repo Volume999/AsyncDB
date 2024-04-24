@@ -1,14 +1,14 @@
 package workflows
 
 import (
-	"AsyncDB/simulation/activities"
+	"AsyncDB/simulation/simulator"
 )
 
 type SequentialWorkflow struct {
-	s activities.Simulator
+	s simulator.Simulator
 }
 
-func NewSequentialWorkflow(simulator activities.Simulator) *SequentialWorkflow {
+func NewSequentialWorkflow(simulator simulator.Simulator) *SequentialWorkflow {
 	return &SequentialWorkflow{s: simulator}
 }
 

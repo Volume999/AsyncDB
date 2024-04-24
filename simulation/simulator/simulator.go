@@ -1,4 +1,4 @@
-package activities
+package simulator
 
 type Simulator interface {
 	ValidateCheckout()

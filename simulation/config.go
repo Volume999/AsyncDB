@@ -1,4 +1,4 @@
-package activities
+package simulation
 
 import "math/rand"
 

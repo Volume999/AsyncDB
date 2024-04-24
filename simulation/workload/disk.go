@@ -1,4 +1,4 @@
-package activities
+package workload
 
 import (
 	"sync"

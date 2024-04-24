@@ -1,16 +1,18 @@
-package activities
+package simulator
 
 import (
+	"AsyncDB/simulation"
+	"AsyncDB/simulation/workload"
 	"math/rand"
 	"sync"
 )
 
 type AsyncSimulator struct {
-	config *Config
-	disk   DiskAccessSimulator
+	config *simulation.Config
+	disk   workload.DiskAccessSimulator
 }
 
-func NewAsyncSimulator(config *Config, disk DiskAccessSimulator) *AsyncSimulator {
+func NewAsyncSimulator(config *simulation.Config, disk workload.DiskAccessSimulator) *AsyncSimulator {
 	return &AsyncSimulator{
 		config: config,
 		disk:   disk,
@@ -28,7 +30,7 @@ func (s *AsyncSimulator) ValidateAvailability() {
 		go func() {
 			defer wg.Done()
 			s.disk.SimulateDiskAccess()
-			SimulateCpuLoad(100)
+			workload.SimulateCpuLoad(100)
 		}()
 	}
 	wg.Wait()
@@ -38,17 +40,17 @@ func (s *AsyncSimulator) ValidateAvailability() {
 		go func() {
 			defer wg.Done()
 			s.disk.SimulateDiskAccess()
-			SimulateCpuLoad(100)
+			workload.SimulateCpuLoad(100)
 		}()
 	}
 	wg.Wait()
-	SimulateCpuLoad(10000)
+	workload.SimulateCpuLoad(10000)
 }
 
 func (s *AsyncSimulator) VerifyCustomer() {
 	wg := &sync.WaitGroup{}
 	s.disk.SimulateDiskAccess()
-	SimulateCpuLoad(100)
+	workload.SimulateCpuLoad(100)
 	appliedOffersCnt := s.config.AppliedOffersCnt
 	wg.Add(appliedOffersCnt)
 	for range appliedOffersCnt {
@@ -57,7 +59,7 @@ func (s *AsyncSimulator) VerifyCustomer() {
 			isLimitedUse := rand.Intn(2) == 0
 			if isLimitedUse {
 				s.disk.SimulateDiskAccess()
-				SimulateCpuLoad(1000)
+				workload.SimulateCpuLoad(1000)
 			}
 		}()
 	}
@@ -75,7 +77,7 @@ func (s *AsyncSimulator) ValidatePayment() {
 			isActive := rand.Intn(10) < 4
 			if isActive {
 				s.disk.SimulateDiskAccess()
-				SimulateCpuLoad(10000)
+				workload.SimulateCpuLoad(10000)
 				s.disk.SimulateDiskAccess()
 				s.disk.SimulateDiskAccess()
 			}
@@ -90,7 +92,7 @@ func (s *AsyncSimulator) ValidateProductOption() {
 
 func (s *AsyncSimulator) RecordOffer() {
 	s.disk.SimulateDiskAccess()
-	SimulateCpuLoad(10000)
+	workload.SimulateCpuLoad(10000)
 }
 
 func (s *AsyncSimulator) CommitTax() {
@@ -107,7 +109,7 @@ func (s *AsyncSimulator) DecrementInventory() {
 		go func() {
 			defer wg.Done()
 			s.disk.SimulateDiskAccess()
-			SimulateCpuLoad(1000)
+			workload.SimulateCpuLoad(1000)
 			s.disk.SimulateDiskAccess()
 		}()
 	}

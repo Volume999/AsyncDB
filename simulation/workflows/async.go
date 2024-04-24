@@ -1,15 +1,15 @@
 package workflows
 
 import (
-	"AsyncDB/simulation/activities"
+	"AsyncDB/simulation/simulator"
 	"sync"
 )
 
 type AsyncWorkflow struct {
-	s activities.Simulator
+	s simulator.Simulator
 }
 
-func NewAsyncWorkflow(s activities.Simulator) *AsyncWorkflow {
+func NewAsyncWorkflow(s simulator.Simulator) *AsyncWorkflow {
 	return &AsyncWorkflow{s}
 }
 

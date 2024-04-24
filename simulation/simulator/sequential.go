@@ -1,15 +1,17 @@
-package activities
+package simulator
 
 import (
+	"AsyncDB/simulation"
+	"AsyncDB/simulation/workload"
 	"math/rand"
 )
 
 type SequentialSimulator struct {
-	config *Config
-	disk   DiskAccessSimulator
+	config *simulation.Config
+	disk   workload.DiskAccessSimulator
 }
 
-func NewSequentialSimulator(config *Config, disk DiskAccessSimulator) *SequentialSimulator {
+func NewSequentialSimulator(config *simulation.Config, disk workload.DiskAccessSimulator) *SequentialSimulator {
 	return &SequentialSimulator{
 		config: config,
 		disk:   disk,
@@ -23,25 +25,25 @@ func (s *SequentialSimulator) ValidateCheckout() {
 func (s *SequentialSimulator) ValidateAvailability() {
 	orderItemsCnt := s.config.OrderItemsCnt
 	for range orderItemsCnt {
-		s.disk.SimulateDiskAccess() // Load to get the item availability
-		SimulateCpuLoad(100)        // Merge SKU Items
+		s.disk.SimulateDiskAccess()   // Load to get the item availability
+		workload.SimulateCpuLoad(100) // Merge SKU Items
 	}
 	skuItemsCnt := s.config.SKUItemsCnt
 	for range skuItemsCnt {
-		s.disk.SimulateDiskAccess() // Load to get the SKU availability
-		SimulateCpuLoad(100)        // Some operations on SKU Items
+		s.disk.SimulateDiskAccess()   // Load to get the SKU availability
+		workload.SimulateCpuLoad(100) // Some operations on SKU Items
 	}
 }
 
 func (s *SequentialSimulator) VerifyCustomer() {
 	s.disk.SimulateDiskAccess() // Load to get the customer details
-	SimulateCpuLoad(100)
+	workload.SimulateCpuLoad(100)
 	appliedOffersCnt := s.config.AppliedOffersCnt
 	for range appliedOffersCnt {
 		isLimitedUse := rand.Intn(2) == 0
 		if isLimitedUse {
 			s.disk.SimulateDiskAccess() // Get uses by customer
-			SimulateCpuLoad(1000)
+			workload.SimulateCpuLoad(1000)
 		}
 	}
 }
@@ -53,7 +55,7 @@ func (s *SequentialSimulator) ValidatePayment() {
 		isActive := rand.Intn(10) < 4
 		if isActive {
 			s.disk.SimulateDiskAccess() // Make new transaction
-			SimulateCpuLoad(10000)
+			workload.SimulateCpuLoad(10000)
 			s.disk.SimulateDiskAccess()
 			s.disk.SimulateDiskAccess()
 		}
@@ -66,7 +68,7 @@ func (s *SequentialSimulator) ValidateProductOption() {
 
 func (s *SequentialSimulator) RecordOffer() {
 	s.disk.SimulateDiskAccess() // Get Order
-	SimulateCpuLoad(10000)
+	workload.SimulateCpuLoad(10000)
 }
 
 func (s *SequentialSimulator) CommitTax() {
@@ -78,9 +80,9 @@ func (s *SequentialSimulator) DecrementInventory() {
 	s.disk.SimulateDiskAccess()
 	orderItemsCnt := s.config.OrderItemsCnt
 	for range orderItemsCnt {
-		s.disk.SimulateDiskAccess() // put Item
-		SimulateCpuLoad(1000)       // Merge SKU Items
-		s.disk.SimulateDiskAccess() // put SKU
+		s.disk.SimulateDiskAccess()    // put Item
+		workload.SimulateCpuLoad(1000) // Merge SKU Items
+		s.disk.SimulateDiskAccess()    // put SKU
 	}
 }
 
