@@ -15,9 +15,17 @@ import (
 func debug_pgTable() {
 	factory := asyncdb.NewPgTableFactory("postgres://postgres:secret@localhost:5432/postgres")
 	defer factory.Close()
-	_, err := factory.CreateTable("test_table")
+	table, err := factory.CreateTable("test_table")
 	if err != nil {
 		panic(err)
+	}
+	fmt.Println("Table created successfully!")
+	fmt.Println("Table Name: ", table.Name())
+	err = table.ValidateTypes("1", "test")
+	if err == nil {
+		fmt.Println("Types validated successfully!")
+	} else {
+		fmt.Println(err)
 	}
 }
 

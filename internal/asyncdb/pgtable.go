@@ -34,15 +34,16 @@ func (f *PgTableFactory) CreateTable(name string) (Table, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create table: %w", err)
 	}
-	return NewPgTable(name)
+	return newPgTable(name, f.pool)
 }
 
 type PgTable struct {
+	pool *pgxpool.Pool
+	name string
 }
 
 func (p PgTable) Name() string {
-	//TODO implement me
-	panic("implement me")
+	return p.name
 }
 
 func (p PgTable) Get(key interface{}) (value interface{}, err error) {
@@ -61,10 +62,19 @@ func (p PgTable) Delete(key interface{}) error {
 }
 
 func (p PgTable) ValidateTypes(key interface{}, value interface{}) error {
-	//TODO implement me
-	panic("implement me")
+	_, keyOk := key.(int)
+	if !keyOk {
+		return fmt.Errorf("%w: expected key type - %T, got - %T", ErrTypeMismatch, *new(int), key)
+	}
+	if value != nil {
+		_, valueOk := value.(string)
+		if !valueOk {
+			return fmt.Errorf("%w: expected value type - %T, got - %T", ErrTypeMismatch, *new(string), value)
+		}
+	}
+	return nil
 }
 
-func NewPgTable(name string) (*PgTable, error) {
-	return &PgTable{}, nil
+func newPgTable(name string, pool *pgxpool.Pool) (*PgTable, error) {
+	return &PgTable{pool: pool, name: name}, nil
 }
