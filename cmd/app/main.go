@@ -12,6 +12,15 @@ import (
 	"github.com/kr/pretty"
 )
 
+func debug_pgTable() {
+	factory := asyncdb.NewPgTableFactory("postgres://postgres:secret@localhost:5432/postgres")
+	defer factory.Close()
+	_, err := factory.CreateTable("test_table")
+	if err != nil {
+		panic(err)
+	}
+}
+
 func debug() {
 	// Try generating data
 	constants := config.NewConstants()
@@ -96,5 +105,5 @@ func debug() {
 }
 
 func main() {
-	debug()
+	debug_pgTable()
 }

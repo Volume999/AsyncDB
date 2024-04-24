@@ -1,13 +1,39 @@
 package asyncdb
 
+import (
+	"context"
+	"fmt"
+	"github.com/jackc/pgx/v5"
+	"os"
+	"time"
+)
+
 type PgTableFactory struct {
+	conn *pgx.Conn
 }
 
-func NewPgTableFactory() *PgTableFactory {
-	return &PgTableFactory{}
+func NewPgTableFactory(connectionString string) *PgTableFactory {
+	conn, err := pgx.Connect(context.Background(), connectionString)
+	if err != nil {
+		fmt.Errorf("failed to connect to database: %w", err)
+		os.Exit(1)
+	}
+	return &PgTableFactory{conn: conn}
+}
+
+func (f *PgTableFactory) Close() {
+	if f.conn != nil {
+		f.conn.Close(context.Background())
+	}
 }
 
 func (f *PgTableFactory) CreateTable(name string) (Table, error) {
+	ctx, _ := context.WithTimeout(context.Background(), 120*time.Second)
+	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key INT PRIMARY KEY, value VARCHAR(500))", name)
+	_, err := f.conn.Exec(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create table: %w", err)
+	}
 	return NewPgTable(name)
 }
 
