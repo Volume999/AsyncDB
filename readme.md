@@ -3,7 +3,7 @@
 # Simulation of sequential vs asynchronous operations
 
 ## Running the simulation
-1. Go to /internal/simulation folder
+1. Go to simulation folder
 2. For latency, run in terminal:
     ```bash
     go test -bench=. -benchmem

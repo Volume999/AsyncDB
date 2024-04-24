@@ -2,71 +2,71 @@ package simulator
 
 import "math/rand"
 
-type SimulatorWithContention struct {
+type WithContention struct {
 	simulator Simulator
 	lockCnt   int
 	locks     []chan struct{}
 }
 
-func NewSimulatorWithContention(simulator Simulator, lockCount int) *SimulatorWithContention {
+func NewWithContention(simulator Simulator, lockCount int) *WithContention {
 	locks := make([]chan struct{}, lockCount)
 	for i := range locks {
 		locks[i] = make(chan struct{}, 1)
 	}
-	return &SimulatorWithContention{
+	return &WithContention{
 		simulator: simulator,
 		lockCnt:   lockCount,
 		locks:     locks,
 	}
 }
 
-func (s *SimulatorWithContention) acquireLock(lockIndex int) {
+func (s *WithContention) acquireLock(lockIndex int) {
 	s.locks[lockIndex] <- struct{}{}
 }
 
-func (s *SimulatorWithContention) releaseLock(lockIndex int) {
+func (s *WithContention) releaseLock(lockIndex int) {
 	<-s.locks[lockIndex]
 }
 
-func (s *SimulatorWithContention) withLock(f func()) {
+func (s *WithContention) withLock(f func()) {
 	lockIndex := rand.Intn(s.lockCnt)
 	s.acquireLock(lockIndex)
 	defer s.releaseLock(lockIndex)
 	f()
 }
 
-func (s *SimulatorWithContention) ValidateCheckout() {
+func (s *WithContention) ValidateCheckout() {
 	s.withLock(s.simulator.ValidateCheckout)
 }
 
-func (s *SimulatorWithContention) ValidateAvailability() {
+func (s *WithContention) ValidateAvailability() {
 	s.withLock(s.simulator.ValidateAvailability)
 }
 
-func (s *SimulatorWithContention) VerifyCustomer() {
+func (s *WithContention) VerifyCustomer() {
 	s.withLock(s.simulator.VerifyCustomer)
 }
 
-func (s *SimulatorWithContention) ValidatePayment() {
+func (s *WithContention) ValidatePayment() {
 	s.withLock(s.simulator.ValidatePayment)
 }
 
-func (s *SimulatorWithContention) ValidateProductOption() {
+func (s *WithContention) ValidateProductOption() {
 	s.withLock(s.simulator.ValidateProductOption)
 }
 
-func (s *SimulatorWithContention) RecordOffer() {
+func (s *WithContention) RecordOffer() {
 	s.withLock(s.simulator.RecordOffer)
 }
 
-func (s *SimulatorWithContention) CommitTax() {
+func (s *WithContention) CommitTax() {
 	s.withLock(s.simulator.CommitTax)
 }
 
-func (s *SimulatorWithContention) DecrementInventory() {
+func (s *WithContention) DecrementInventory() {
 	s.withLock(s.simulator.DecrementInventory)
 }
 
-func (s *SimulatorWithContention) CompleteOrder() {
+func (s *WithContention) CompleteOrder() {
 	s.withLock(s.simulator.CompleteOrder)
 }

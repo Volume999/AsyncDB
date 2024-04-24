@@ -1,6 +1,7 @@
-package simulation
+package simulation_test
 
 import (
+	"AsyncDB/simulation"
 	"AsyncDB/simulation/simulator"
 	"AsyncDB/simulation/workflows"
 	"AsyncDB/simulation/workload"
@@ -11,7 +12,7 @@ import (
 	"time"
 )
 
-var config = RandomConfig()
+var config = simulation.RandomConfig()
 
 func diskByType(diskType string, accessTimeMs int) workload.DiskAccessSimulator {
 	switch diskType {
@@ -24,7 +25,7 @@ func diskByType(diskType string, accessTimeMs int) workload.DiskAccessSimulator 
 	}
 }
 
-func simulatorByType(simulatorType string, config *Config, disk workload.DiskAccessSimulator) simulator.Simulator {
+func simulatorByType(simulatorType string, config *simulation.Config, disk workload.DiskAccessSimulator) simulator.Simulator {
 	switch simulatorType {
 	case "sequential":
 		return simulator.NewSequentialSimulator(config, disk)
@@ -73,11 +74,11 @@ func BenchmarkWorkflows(b *testing.B) {
 								b.Run("disk="+diskT+"/accessTime(ms)="+strconv.Itoa(diskAccessTime)+"/simulator="+simulatorT+"/workflow="+workflowT+"/parallelism="+strconv.Itoa(parallelismT*runtime.NumCPU())+"/limitConnections="+strconv.Itoa(limitConnectionsT)+"/lockCount="+strconv.Itoa(lockCountT), func(b *testing.B) {
 									b.SetParallelism(parallelismT)
 									disk := diskByType(diskT, diskAccessTime)
-									simulator := simulatorByType(simulatorT, config, disk)
+									sim := simulatorByType(simulatorT, config, disk)
 									if lockCountT > 0 {
-										simulator = simulator.NewSimulatorWithContention(simulator, lockCountT)
+										sim = simulator.NewWithContention(sim, lockCountT)
 									}
-									workflow := workflowByType(workflowT, simulator)
+									workflow := workflowByType(workflowT, sim)
 									if limitConnectionsT > 0 {
 										workflow = workflows.NewLimitedConnectionsWorkflow(workflow, limitConnectionsT)
 									}
