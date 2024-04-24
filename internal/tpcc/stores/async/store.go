@@ -1,7 +1,7 @@
 package async
 
 import (
-	"AsyncDB/internal/asyncdb"
+	"AsyncDB/asyncdb"
 	"AsyncDB/internal/databases"
 	"AsyncDB/internal/tpcc/models"
 )

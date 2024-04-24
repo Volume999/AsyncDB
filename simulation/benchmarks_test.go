@@ -1,8 +1,8 @@
 package simulation
 
 import (
-	"AsyncDB/internal/simulation/activities"
-	"AsyncDB/internal/simulation/workflows"
+	"AsyncDB/simulation/activities"
+	"AsyncDB/simulation/workflows"
 	"runtime"
 	"strconv"
 	"sync/atomic"

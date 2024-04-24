@@ -1,7 +1,7 @@
 package workflows
 
 import (
-	"AsyncDB/internal/simulation/activities"
+	"AsyncDB/simulation/activities"
 )
 
 type SequentialWorkflow struct {

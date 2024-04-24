@@ -1,8 +1,8 @@
 package main
 
 import (
-	"AsyncDB/internal/asyncdb"
-	"AsyncDB/internal/asyncdb/config"
+	"AsyncDB/asyncdb"
+	"AsyncDB/internal/tpcc/config"
 	"AsyncDB/internal/tpcc/dataloaders"
 	"AsyncDB/internal/tpcc/dataloaders/loaders"
 	"AsyncDB/internal/tpcc/models"

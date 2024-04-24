@@ -1,7 +1,7 @@
 package main
 
 import (
-	"AsyncDB/internal/asyncdb/config"
+	"AsyncDB/internal/tpcc/config"
 	"AsyncDB/internal/tpcc/dataloaders"
 	"fmt"
 	"time"

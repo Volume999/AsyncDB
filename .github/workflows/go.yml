@@ -28,4 +28,4 @@ jobs:
       run: go test -v ./...
 
     - name: Fuzz
-      run: go test -v -fuzz . -fuzztime 3s ./internal/asyncdb
+      run: go test -v -fuzz . -fuzztime 3s ./asyncdb

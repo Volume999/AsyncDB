@@ -1,7 +1,7 @@
 package order
 
 import (
-	"AsyncDB/internal/asyncdb"
+	"AsyncDB/asyncdb"
 	"AsyncDB/internal/databases"
 	"AsyncDB/internal/tpcc/models"
 	"AsyncDB/internal/tpcc/stores/async"

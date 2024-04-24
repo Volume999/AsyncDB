@@ -1,7 +1,7 @@
 package dataloaders
 
 import (
-	"AsyncDB/internal/asyncdb/config"
+	"AsyncDB/internal/tpcc/config"
 	"AsyncDB/internal/tpcc/dataloaders/generators"
 	"AsyncDB/internal/tpcc/models"
 	"fmt"

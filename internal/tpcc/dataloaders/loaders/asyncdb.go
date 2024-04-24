@@ -1,7 +1,7 @@
 package loaders
 
 import (
-	"AsyncDB/internal/asyncdb"
+	"AsyncDB/asyncdb"
 	"AsyncDB/internal/tpcc/dataloaders"
 	"AsyncDB/internal/tpcc/models"
 )
