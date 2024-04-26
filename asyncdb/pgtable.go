@@ -14,6 +14,7 @@ type PgTableFactory struct {
 	pool *pgxpool.Pool
 }
 
+// TODO: This should also return errors
 func NewPgTableFactory(connectionString string) *PgTableFactory {
 	config, err := pgxpool.ParseConfig(connectionString)
 	if err != nil {
@@ -36,7 +37,8 @@ func (f *PgTableFactory) Close() {
 }
 
 func (f *PgTableFactory) GetTable(name string) (Table, error) {
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key VARCHAR(500) PRIMARY KEY, value VARCHAR(500))", name)
 	_, err := f.pool.Exec(ctx, query)
 	if err != nil {
@@ -46,7 +48,8 @@ func (f *PgTableFactory) GetTable(name string) (Table, error) {
 }
 
 func (f *PgTableFactory) DeleteTable(name string) error {
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", name)
 	_, err := f.pool.Exec(ctx, query)
 	if err != nil {
@@ -56,7 +59,8 @@ func (f *PgTableFactory) DeleteTable(name string) error {
 }
 
 func (f *PgTableFactory) GetExistingTables() ([]Table, error) {
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	query := "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
 	rows, err := f.pool.Query(ctx, query)
 	if err != nil {
@@ -131,7 +135,7 @@ func (p PgTable) Delete(key interface{}) error {
 	return nil
 }
 
-func (p PgTable) ValidateTypes(key interface{}, value interface{}) error {
+func (p PgTable) ValidateTypes(_ interface{}, _ interface{}) error {
 	// Interfaces will be converted to strings using fmt.Sprintf, so no need to validate types
 	return nil
 }
