@@ -138,11 +138,17 @@ func (s *TCLSuite) TestAsyncDB_CommitTransaction() {
 
 type DMLSuite struct {
 	suite.Suite
-	db  *AsyncDB
-	ctx *ConnectionContext
-
+	db        *AsyncDB
+	ctx       *ConnectionContext
+	tableType string
 	// PgTable implementation
 	pgTableFactory *PgTableFactory
+}
+
+func NewDMLSuite(tableType string) *DMLSuite {
+	return &DMLSuite{
+		tableType: tableType,
+	}
 }
 
 func (s *DMLSuite) SetupSuite() {
@@ -682,7 +688,7 @@ func (s *DMLSuite) TestAsyncDB_When_Commit_Operations_Cannot_Be_Submitted() {
 			db.Put(ctx, "test", 1, 2)
 		}
 	}()
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(100 * time.Microsecond)
 	go func() {
 		defer close(wait)
 		_ = db.CommitTransaction(ctx)
@@ -921,8 +927,13 @@ func TestDDLSuite(t *testing.T) {
 	suite.Run(t, new(DDLSuite))
 }
 
-func TestDMLSuite(t *testing.T) {
-	suite.Run(t, new(DMLSuite))
+func TestDMLSuiteInMemory(t *testing.T) {
+	//suite.Run(t, new(DMLSuite))
+	suite.Run(t, NewDMLSuite("inMemory"))
+}
+
+func TestDMLSuitePostgres(t *testing.T) {
+	suite.Run(t, NewDMLSuite("postgres"))
 }
 
 func TestTCLSuite(t *testing.T) {
