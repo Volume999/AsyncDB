@@ -17,7 +17,7 @@ type RequestResult struct {
 //type AsyncDatabase interface {
 //	Connect() (*ConnectionContext, error)
 //	Disconnect(context *ConnectionContext) error
-//	CreateTable(ctx *ConnectionContext, table asyncdb.Table) error
+//	GetTable(ctx *ConnectionContext, table asyncdb.Table) error
 //	Put(ctx *ConnectionContext, tableName string, key interface{}, value interface{}) (resultChan <-chan RequestResult)
 //	Get(ctx *ConnectionContext, tableName string, key interface{}) (resultChan <-chan RequestResult)
 //	Delete(ctx *ConnectionContext, tableName string, key interface{}) (resultChan <-chan RequestResult)

@@ -12,10 +12,10 @@ import (
 	"github.com/kr/pretty"
 )
 
-func debug_pgTable() {
+func debugPgTable() {
 	factory := asyncdb.NewPgTableFactory("postgres://postgres:secret@localhost:5432/postgres")
 	defer factory.Close()
-	table, err := factory.CreateTable("test_table")
+	table, err := factory.GetTable("test_table")
 	if err != nil {
 		panic(err)
 	}
@@ -27,6 +27,37 @@ func debug_pgTable() {
 	} else {
 		fmt.Println(err)
 	}
+	// Get non-existent value from DB
+	val, err := table.Get("1")
+	fmt.Println("Non-existent Get Results:", val, err)
+
+	// Put value to DB
+	err = table.Put("1", "test")
+	fmt.Println("Put 'test' Results:", err)
+
+	// Check if value is updated
+	val, err = table.Get("1")
+	fmt.Println("Get 'test' Results:", val, err)
+
+	// Check if updates using PUT work
+	err = table.Put("1", "Test2")
+	fmt.Println("Put 'Test2' Results:", err)
+
+	// Check if value is updated
+	val, err = table.Get("1")
+	fmt.Println("Get 'Test2' Results:", val, err)
+
+	// Delete value from DB
+	err = table.Delete("1")
+	fmt.Println("Delete Results:", err)
+
+	// Check if value is deleted
+	val, err = table.Get("1")
+	fmt.Println("Get after Delete Results:", val, err)
+
+	// Delete non-existent value from DB
+	err = table.Delete("2")
+	fmt.Println("Delete non-existent Results:", err)
 }
 
 func debug() {
@@ -113,5 +144,5 @@ func debug() {
 }
 
 func main() {
-	debug_pgTable()
+	debugPgTable()
 }
