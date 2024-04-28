@@ -3,6 +3,7 @@ package asyncdb
 import (
 	"AsyncDB/internal/databases"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"testing"
 	"time"
@@ -912,6 +913,7 @@ func (s *InMemoryTablesSuite) TestAsyncDB_Delete() {
 	}
 }
 
+// PostgresTableSuite is not used, can be removed later if not needed
 type PostgresTablesSuite struct {
 	suite.Suite
 	db  *AsyncDB
@@ -929,6 +931,19 @@ func (s *PostgresTablesSuite) SetupTest() {
 	table2, _ := pgTableFactory.GetTable("test2")
 	_ = s.db.CreateTable(s.ctx, table1)
 	_ = s.db.CreateTable(s.ctx, table2)
+}
+
+func TestAsyncDB_Implicit_Transactions_Should_Fail_If_Option_Is_Disabled(t *testing.T) {
+	tm := NewTransactionManager()
+	lm := NewLockManager()
+	h := NewStringHasher()
+	db := NewAsyncDB(tm, lm, h, WithExplicitTxn())
+	ctx, _ := db.Connect()
+	tbl, _ := NewInMemoryTable[int, int]("test")
+	_ = db.CreateTable(ctx, tbl)
+	val := <-db.Put(ctx, "test", 1, 2)
+	assert.EqualError(t, val.Err, "connection not in transaction")
+
 }
 
 func TestDDLSuite(t *testing.T) {

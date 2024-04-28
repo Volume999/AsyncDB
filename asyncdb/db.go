@@ -149,21 +149,31 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 		implTransaction := false
 
 		// If the connection is not in a transaction - start a transaction
-		txnId, err := p.tManager.StartTransaction(ctx.ID)
-		if err == nil {
+		_, err = p.tManager.GetLog(ctx.ID)
+		if errors.Is(err, ErrConnNotInXact) {
+			if !p.withImplicitTxn {
+				resultChan <- databases.RequestResult{
+					Data: nil,
+					Err:  ErrConnNotInXact,
+				}
+				wg.Done()
+				return
+			}
+			txnId, err := p.tManager.StartTransaction(ctx.ID)
+			if err != nil {
+				resultChan <- databases.RequestResult{
+					Data: nil,
+					Err:  errors.Join(fmt.Errorf("error with implicit transaction"), err),
+				}
+				wg.Done()
+				return
+			}
 			implTransaction = true
 			ctx.Txn = &TransactInfo{
 				tId:  txnId,
 				mode: Active,
 				ts:   time.Now().UnixNano(),
 			}
-		} else if !errors.Is(err, ErrConnInXact) {
-			resultChan <- databases.RequestResult{
-				Data: nil,
-				Err:  err,
-			}
-			wg.Done()
-			return
 		}
 		tLog, err := p.tManager.GetLog(ctx.ID)
 		err = p.lManager.Lock(WriteLock, ctx.Txn.tId, ctx.Txn.ts, TableId(hash), key)
@@ -219,21 +229,33 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 	wg.Add(1)
 	go func() {
 		implTransaction := false
-		txnId, err := p.tManager.StartTransaction(ctx.ID)
-		if err == nil {
+
+		// If the connection is not in a transaction - start a transaction
+		_, err := p.tManager.GetLog(ctx.ID)
+		if errors.Is(err, ErrConnNotInXact) {
+			if !p.withImplicitTxn {
+				resultChan <- databases.RequestResult{
+					Data: nil,
+					Err:  ErrConnNotInXact,
+				}
+				wg.Done()
+				return
+			}
+			txnId, err := p.tManager.StartTransaction(ctx.ID)
+			if err != nil {
+				resultChan <- databases.RequestResult{
+					Data: nil,
+					Err:  errors.Join(fmt.Errorf("error with implicit transaction"), err),
+				}
+				wg.Done()
+				return
+			}
 			implTransaction = true
 			ctx.Txn = &TransactInfo{
 				tId:  txnId,
 				mode: Active,
 				ts:   time.Now().UnixNano(),
 			}
-		} else if !errors.Is(err, ErrConnInXact) {
-			resultChan <- databases.RequestResult{
-				Data: nil,
-				Err:  err,
-			}
-			wg.Done()
-			return
 		}
 		hash := p.hasher.HashStringUint64(tableName)
 		err = p.lManager.Lock(WriteLock, ctx.Txn.tId, ctx.Txn.ts, TableId(hash), key)
@@ -301,23 +323,37 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 	wg.Add(1)
 	go func() {
 		var err error
+
 		implTransaction := false
-		txnId, err := p.tManager.StartTransaction(ctx.ID)
-		if err == nil {
+
+		// If the connection is not in a transaction - start a transaction
+		_, err = p.tManager.GetLog(ctx.ID)
+		if errors.Is(err, ErrConnNotInXact) {
+			if !p.withImplicitTxn {
+				resultChan <- databases.RequestResult{
+					Data: nil,
+					Err:  ErrConnNotInXact,
+				}
+				wg.Done()
+				return
+			}
+			txnId, err := p.tManager.StartTransaction(ctx.ID)
+			if err != nil {
+				resultChan <- databases.RequestResult{
+					Data: nil,
+					Err:  errors.Join(fmt.Errorf("error with implicit transaction"), err),
+				}
+				wg.Done()
+				return
+			}
 			implTransaction = true
 			ctx.Txn = &TransactInfo{
 				tId:  txnId,
 				mode: Active,
 				ts:   time.Now().UnixNano(),
 			}
-		} else if !errors.Is(err, ErrConnInXact) {
-			resultChan <- databases.RequestResult{
-				Data: nil,
-				Err:  err,
-			}
-			wg.Done()
-			return
 		}
+		tLog, err := p.tManager.GetLog(ctx.ID)
 		err = p.lManager.Lock(WriteLock, ctx.Txn.tId, ctx.Txn.ts, TableId(hash), key)
 		// TODO: Change this logic
 		// Locks are released only when the transaction is aborted
@@ -349,7 +385,6 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 			return
 		}
 		wg.Done()
-		tLog, err := p.tManager.GetLog(ctx.ID)
 		tLog.addAction(Action{
 			Op:      LDelete,
 			tableId: hash,
