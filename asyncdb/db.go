@@ -43,15 +43,28 @@ type AsyncDB struct {
 	lManager         LockManager
 	hasher           Hasher
 	currentProcesses *ThreadSafeMap[uuid.UUID, *sync.WaitGroup]
+	withImplicitTxn  bool
 }
 
-func NewAsyncDB(tManager TransactionManager, lManager LockManager, hasher Hasher) *AsyncDB {
-	return &AsyncDB{
+func NewAsyncDB(tManager TransactionManager, lManager LockManager, hasher Hasher, options ...func(*AsyncDB)) *AsyncDB {
+	db := &AsyncDB{
 		tManager:         tManager,
 		lManager:         lManager,
 		data:             NewThreadSafeMap[uint64, Table](),
 		hasher:           hasher,
 		currentProcesses: NewThreadSafeMap[uuid.UUID, *sync.WaitGroup](),
+		withImplicitTxn:  true,
+	}
+
+	for _, option := range options {
+		option(db)
+	}
+	return db
+}
+
+func WithExplicitTxn() func(*AsyncDB) {
+	return func(db *AsyncDB) {
+		db.withImplicitTxn = false
 	}
 }
 
