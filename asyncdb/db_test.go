@@ -163,6 +163,7 @@ func (s *DMLSuite) SetupTest() {
 	ctx, _ := s.db.Connect()
 	s.ctx = ctx
 
+	// TODO: This needs to be conditional based on the suite flag
 	//In-memory table implementation
 
 	//table1, _ := NewInMemoryTable[int, int]("test")
@@ -412,24 +413,23 @@ func (s *DMLSuite) TestAsyncDB_SimpleTransaction() {
 	}, time.Second, 100*time.Millisecond)
 }
 
-//func (s *DMLSuite) TestAsyncDB_When_Reading_Record_Written_By_Same_Transaction_Should_Return_Value() {
-//	db := s.db
-//	ctx := s.ctx
-//	_ = db.StartTransaction(ctx)
-//	<-db.Put(ctx, "test", 1, 2)
-//	<-db.Put(ctx, "test", 2, 3)
-//	ch := db.Get(ctx, "test", 1)
-//	s.Eventually(func() bool {
-//		select {
-//		case res := <-ch:
-//			s.Nil(res.Err)
-//			s.Equal(2, res.Data)
-//			return true
-//		default:
-//			return false
-//		}
-//	}, time.Second, 100*time.Millisecond)
-//}
+func (s *DMLSuite) TestAsyncDB_When_Reading_Record_Written_By_Same_Transaction_Should_Return_Value() {
+	db := s.db
+	ctx := s.ctx
+	_ = db.BeginTransaction(ctx)
+	<-db.Put(ctx, "test", 1, 2)
+	ch := db.Get(ctx, "test", 1)
+	s.Eventually(func() bool {
+		select {
+		case res := <-ch:
+			s.Nil(res.Err)
+			s.Equal(2, res.Data)
+			return true
+		default:
+			return false
+		}
+	}, time.Second, 100*time.Millisecond)
+}
 
 func (s *DMLSuite) TestAsyncDB_TransactionAbort_Should_Rollback() {
 	db := s.db
@@ -491,7 +491,7 @@ func (s *DMLSuite) TestAsyncDB_RollbackTransaction_Should_Fail_When_Not_In_Trans
 	s.EqualError(err, "connection not in transaction")
 }
 
-func (s *DMLSuite) TestAsyncDB_DirtyWrite() {
+func (s *DMLSuite) TestAsyncDB_DirtyRead() {
 	db := s.db
 	ctx := s.ctx
 	_ = db.BeginTransaction(ctx)
@@ -688,7 +688,7 @@ func (s *DMLSuite) TestAsyncDB_When_Commit_Operations_Cannot_Be_Submitted() {
 			db.Put(ctx, "test", 1, 2)
 		}
 	}()
-	time.Sleep(100 * time.Microsecond)
+	time.Sleep(1 * time.Microsecond)
 	go func() {
 		defer close(wait)
 		_ = db.CommitTransaction(ctx)

@@ -244,6 +244,23 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 			}
 			return
 		}
+		log, err := p.tManager.GetLog(ctx.ID)
+		if err != nil {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  err,
+			}
+			wg.Done()
+			return
+		}
+		if res, found := log.findLastValue(hash, key); found {
+			resultChan <- databases.RequestResult{
+				Data: res,
+				Err:  nil,
+			}
+			wg.Done()
+			return
+		}
 		res := <-p.getValue(ctx, tableName, key)
 		wg.Done()
 		if implTransaction {

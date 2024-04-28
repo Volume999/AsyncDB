@@ -82,11 +82,25 @@ func (t *TransactionManagerImpl) EndTransaction(ConnId uuid.UUID) error {
 }
 
 func (t *TransactionLog) addAction(a Action) {
+	// TODO: Instead of locking the whole map, should lock only the slice header
 	t.l.Lock()
 	defer t.l.Unlock()
 	entries, _ := t.l.GetUnsafe(a.tableId)
 	entries = append(entries, LogEntry{Op: a.Op, Value: a.Value, Key: a.Key})
 	t.l.PutUnsafe(a.tableId, entries)
+}
+
+func (t *TransactionLog) findLastValue(tableId uint64, key interface{}) (interface{}, bool) {
+	// TODO: Instead of locking the whole map, should lock only the slice header
+	t.l.Lock()
+	defer t.l.Unlock()
+	entries, _ := t.l.GetUnsafe(tableId)
+	for i := len(entries) - 1; i >= 0; i-- {
+		if entries[i].Key == key {
+			return entries[i].Value, true
+		}
+	}
+	return nil, false
 }
 
 func (t *TransactionManagerImpl) GetLog(ConnId uuid.UUID) (*TransactionLog, error) {
