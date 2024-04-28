@@ -2,9 +2,11 @@ package asyncdb
 
 import (
 	"AsyncDB/internal/databases"
+	"errors"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"sync"
 	"testing"
 	"time"
 )
@@ -555,46 +557,46 @@ func (s *DMLSuite) TestAsyncDB_NonRepeatableRead() {
 	s.Equal("3", fmt.Sprintf("%v", val3.Data))
 }
 
-//func (s *DMLSuite) TestAsyncDB_Data_Consistency() {
-//	db := s.db
-//	iters := 1000
-//	threads := 10
-//	ctx_start := s.ctx
-//	<-db.Put(ctx_start, "test", 1, 0)
-//	xact := func(ctx *ConnectionContext) error {
-//		val := <-db.Get(ctx, "test", 1)
-//		if val.Err != nil {
-//			return val.Err
-//		}
-//		val = <-db.Put(ctx, "test", 1, val.Data.(int)+1)
-//		return val.Err
-//	}
-//	wg := sync.WaitGroup{}
-//	wg.Add(threads)
-//	f := func() {
-//		defer wg.Done()
-//		ctx, _ := db.Connect()
-//		for i := 0; i < iters; i++ {
-//			_ = db.BeginTransaction(ctx)
-//			err := xact(ctx)
-//			for errors.Is(err, ErrLockConflict) {
-//				err = xact(ctx)
-//			}
-//			if err != nil {
-//				s.T().Errorf("Error in transaction: %v", err)
-//				db.RollbackTransaction(ctx)
-//			}
-//			db.CommitTransaction(ctx)
-//		}
-//	}
-//	for i := 0; i < threads; i++ {
-//		go f()
-//	}
-//	wg.Wait()
-//	val := <-db.Get(ctx_start, "test", 1)
-//	s.Nil(val.Err)
-//	s.Equal(threads*iters, val.Data)
-//}
+func (s *DMLSuite) TestAsyncDB_Data_Consistency() {
+	db := s.db
+	iters := 1000
+	threads := 10
+	ctx_start := s.ctx
+	<-db.Put(ctx_start, "test", 1, 0)
+	xact := func(ctx *ConnectionContext) error {
+		val := <-db.Get(ctx, "test", 1)
+		if val.Err != nil {
+			return val.Err
+		}
+		val = <-db.Put(ctx, "test", 1, val.Data.(int)+1)
+		return val.Err
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(threads)
+	f := func() {
+		defer wg.Done()
+		ctx, _ := db.Connect()
+		for i := 0; i < iters; i++ {
+			_ = db.BeginTransaction(ctx)
+			err := xact(ctx)
+			for errors.Is(err, ErrLockConflict) {
+				err = xact(ctx)
+			}
+			if err != nil {
+				s.T().Errorf("Error in transaction: %v", err)
+				db.RollbackTransaction(ctx)
+			}
+			db.CommitTransaction(ctx)
+		}
+	}
+	for i := 0; i < threads; i++ {
+		go f()
+	}
+	wg.Wait()
+	val := <-db.Get(ctx_start, "test", 1)
+	s.Nil(val.Err)
+	s.Equal(threads*iters, val.Data)
+}
 
 func (s *DMLSuite) TestAsyncDB_When_Lock_Conflict_Should_Abort_Transaction() {
 	cases := []string{"Put", "Get", "Delete"}
@@ -943,7 +945,6 @@ func TestAsyncDB_Implicit_Transactions_Should_Fail_If_Option_Is_Disabled(t *test
 	_ = db.CreateTable(ctx, tbl)
 	val := <-db.Put(ctx, "test", 1, 2)
 	assert.EqualError(t, val.Err, "connection not in transaction")
-
 }
 
 func TestDDLSuite(t *testing.T) {
