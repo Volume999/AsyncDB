@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+const (
+	TableImpl = "InMemory" // InMemory, PgTable
+)
+
 type DDLSuite struct {
 	suite.Suite
 	db  *AsyncDB
@@ -138,21 +142,18 @@ func (s *TCLSuite) TestAsyncDB_CommitTransaction() {
 
 type DMLSuite struct {
 	suite.Suite
-	db        *AsyncDB
-	ctx       *ConnectionContext
-	tableType string
+	db  *AsyncDB
+	ctx *ConnectionContext
+
 	// PgTable implementation
 	pgTableFactory *PgTableFactory
 }
 
-func NewDMLSuite(tableType string) *DMLSuite {
-	return &DMLSuite{
-		tableType: tableType,
-	}
-}
-
 func (s *DMLSuite) SetupSuite() {
-	s.pgTableFactory = NewPgTableFactory("postgres://postgres:secret@localhost:5432/postgres")
+	//PgTable implementation
+	if TableImpl == "PgTable" {
+		s.pgTableFactory = NewPgTableFactory("postgres://postgres:secret@localhost:5432/postgres")
+	}
 }
 
 func (s *DMLSuite) SetupTest() {
@@ -165,27 +166,34 @@ func (s *DMLSuite) SetupTest() {
 
 	// TODO: This needs to be conditional based on the suite flag
 	//In-memory table implementation
-
-	//table1, _ := NewInMemoryTable[int, int]("test")
-	//table2, _ := NewInMemoryTable[int, int]("test2")
-	//_ = s.db.CreateTable(s.ctx, table1)
-	//_ = s.db.CreateTable(s.ctx, table2)
-
-	// PgTable implementation
-	table1, _ := s.pgTableFactory.GetTable("test")
-	table2, _ := s.pgTableFactory.GetTable("test2")
-	_ = s.db.CreateTable(s.ctx, table1)
-	_ = s.db.CreateTable(s.ctx, table2)
+	if TableImpl == "InMemory" {
+		table1, _ := NewInMemoryTable[int, int]("test")
+		table2, _ := NewInMemoryTable[int, int]("test2")
+		_ = s.db.CreateTable(s.ctx, table1)
+		_ = s.db.CreateTable(s.ctx, table2)
+	} else if TableImpl == "PgTable" {
+		// PgTable implementation
+		table1, _ := s.pgTableFactory.GetTable("test")
+		table2, _ := s.pgTableFactory.GetTable("test2")
+		_ = s.db.CreateTable(s.ctx, table1)
+		_ = s.db.CreateTable(s.ctx, table2)
+	}
 }
 
 func (s *DMLSuite) TearDownTest() {
-	// PgTable Implementation
-	s.pgTableFactory.DeleteTable("test")
-	s.pgTableFactory.DeleteTable("test2")
+	//PgTable Implementation
+	if TableImpl == "PgTable" {
+		s.pgTableFactory.DeleteTable("test")
+		s.pgTableFactory.DeleteTable("test2")
+	}
 }
 
 func (s *DMLSuite) TearDownSuite() {
-	s.pgTableFactory.Close()
+
+	// PgTable Implementation
+	if TableImpl == "PgTable" {
+		s.pgTableFactory.Close()
+	}
 }
 
 func (s *DMLSuite) TestAsyncDB_Put() {
@@ -927,13 +935,8 @@ func TestDDLSuite(t *testing.T) {
 	suite.Run(t, new(DDLSuite))
 }
 
-func TestDMLSuiteInMemory(t *testing.T) {
-	//suite.Run(t, new(DMLSuite))
-	suite.Run(t, NewDMLSuite("inMemory"))
-}
-
-func TestDMLSuitePostgres(t *testing.T) {
-	suite.Run(t, NewDMLSuite("postgres"))
+func TestDMLSuite(t *testing.T) {
+	suite.Run(t, new(DMLSuite))
 }
 
 func TestTCLSuite(t *testing.T) {
