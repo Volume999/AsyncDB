@@ -1,9 +1,9 @@
 package main
 
 import (
-	"AsyncDB/internal/tpcc/config"
-	"AsyncDB/internal/tpcc/dataloaders"
 	"fmt"
+	"github.com/Volume999/AsyncDB/internal/tpcc/config"
+	"github.com/Volume999/AsyncDB/internal/tpcc/dataloaders"
 	"time"
 )
 

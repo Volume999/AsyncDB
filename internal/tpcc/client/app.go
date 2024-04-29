@@ -1,8 +1,8 @@
 package client
 
 import (
-	"AsyncDB/internal/tpcc/dataloaders/generators"
-	"AsyncDB/internal/tpcc/services/order"
+	"github.com/Volume999/AsyncDB/internal/tpcc/dataloaders/generators"
+	"github.com/Volume999/AsyncDB/internal/tpcc/services/order"
 	"log"
 )
 

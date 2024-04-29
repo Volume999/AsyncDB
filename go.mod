@@ -1,4 +1,4 @@
-module AsyncDB
+module github.com/Volume999/AsyncDB
 
 go 1.22
 

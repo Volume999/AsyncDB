@@ -1,9 +1,9 @@
 package async
 
 import (
-	"AsyncDB/asyncdb"
-	"AsyncDB/internal/databases"
-	"AsyncDB/internal/tpcc/models"
+	"github.com/Volume999/AsyncDB/asyncdb"
+	"github.com/Volume999/AsyncDB/internal/databases"
+	"github.com/Volume999/AsyncDB/internal/tpcc/models"
 )
 
 type Store[V any, K any] interface {

@@ -1,9 +1,9 @@
 package asyncdb
 
 import (
-	"AsyncDB/internal/databases"
 	"errors"
 	"fmt"
+	"github.com/Volume999/AsyncDB/internal/databases"
 	"github.com/dlsniper/debugger"
 	"github.com/google/uuid"
 	"sync"

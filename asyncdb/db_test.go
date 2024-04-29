@@ -1,9 +1,9 @@
 package asyncdb
 
 import (
-	"AsyncDB/internal/databases"
 	"errors"
 	"fmt"
+	"github.com/Volume999/AsyncDB/internal/databases"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"sync"
@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	TableImpl = "PgTable" // InMemory, PgTable
+	TableImpl = "InMemory" // InMemory, PgTable
 )
 
 type DDLSuite struct {

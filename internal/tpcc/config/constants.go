@@ -1,7 +1,7 @@
 package config
 
 import (
-	"AsyncDB/internal/tpcc/dataloaders/generators"
+	"github.com/Volume999/AsyncDB/internal/tpcc/dataloaders/generators"
 )
 
 // Constants TODO: What are these?

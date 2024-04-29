@@ -1,10 +1,10 @@
 package dataloaders
 
 import (
-	"AsyncDB/internal/tpcc/config"
-	"AsyncDB/internal/tpcc/dataloaders/generators"
-	"AsyncDB/internal/tpcc/models"
 	"fmt"
+	"github.com/Volume999/AsyncDB/internal/tpcc/config"
+	"github.com/Volume999/AsyncDB/internal/tpcc/dataloaders/generators"
+	"github.com/Volume999/AsyncDB/internal/tpcc/models"
 	"log"
 	"time"
 )

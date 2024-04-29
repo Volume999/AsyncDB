@@ -1,9 +1,9 @@
 package loaders
 
 import (
-	"AsyncDB/asyncdb"
-	"AsyncDB/internal/tpcc/dataloaders"
-	"AsyncDB/internal/tpcc/models"
+	"github.com/Volume999/AsyncDB/asyncdb"
+	"github.com/Volume999/AsyncDB/internal/tpcc/dataloaders"
+	"github.com/Volume999/AsyncDB/internal/tpcc/models"
 )
 
 type AsyncDBLoader struct {
