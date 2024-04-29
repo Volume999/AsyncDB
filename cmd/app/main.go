@@ -13,7 +13,7 @@ import (
 )
 
 func debugPgTable() {
-	factory := asyncdb.NewPgTableFactory("postgres://postgres:secret@localhost:5432/postgres")
+	factory, _ := asyncdb.NewPgTableFactory("postgres://postgres:secret@localhost:5432/postgres")
 	defer factory.Close()
 	_ = factory.DeleteTable("test_table")
 	table, err := factory.GetTable("test_table")

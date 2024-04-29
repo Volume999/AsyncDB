@@ -15,7 +15,7 @@ type PgTableFactory struct {
 }
 
 // TODO: This should also return errors
-func NewPgTableFactory(connectionString string) *PgTableFactory {
+func NewPgTableFactory(connectionString string) (*PgTableFactory, error) {
 	config, err := pgxpool.ParseConfig(connectionString)
 	if err != nil {
 		fmt.Errorf("failed to parse connection string: %w", err)
@@ -23,11 +23,12 @@ func NewPgTableFactory(connectionString string) *PgTableFactory {
 	}
 	config.MaxConns = 100
 	conn, err := pgxpool.NewWithConfig(context.Background(), config)
+	err = conn.Ping(context.Background())
 	if err != nil {
 		fmt.Errorf("failed to connect to database: %w", err)
-		os.Exit(1)
+		return nil, err
 	}
-	return &PgTableFactory{pool: conn}
+	return &PgTableFactory{pool: conn}, nil
 }
 
 func (f *PgTableFactory) Close() {

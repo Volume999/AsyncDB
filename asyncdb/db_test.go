@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	TableImpl = "InMemory" // InMemory, PgTable
+	TableImpl = "PgTable" // InMemory, PgTable
 )
 
 type DDLSuite struct {
@@ -155,7 +155,11 @@ type DMLSuite struct {
 func (s *DMLSuite) SetupSuite() {
 	//PgTable implementation
 	if TableImpl == "PgTable" {
-		s.pgTableFactory = NewPgTableFactory("postgres://postgres:secret@localhost:5432/postgres")
+		pgTableFactory, err := NewPgTableFactory("postgres://postgres:secret@localhost:5432/postgres")
+		if err != nil {
+			s.T().Fatal(err)
+		}
+		s.pgTableFactory = pgTableFactory
 	}
 }
 
@@ -928,7 +932,10 @@ func (s *PostgresTablesSuite) SetupTest() {
 	h := NewStringHasher()
 	s.db = NewAsyncDB(tm, lm, h)
 	s.ctx, _ = s.db.Connect()
-	pgTableFactory := NewPgTableFactory("postgres://postgres:secret@localhost:5432/postgres")
+	pgTableFactory, err := NewPgTableFactory("postgres://postgres:secret@localhost:5432/postgres")
+	if err != nil {
+		s.T().Fatal(err)
+	}
 	table1, _ := pgTableFactory.GetTable("test")
 	table2, _ := pgTableFactory.GetTable("test2")
 	_ = s.db.CreateTable(s.ctx, table1)
