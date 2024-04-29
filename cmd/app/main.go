@@ -15,6 +15,7 @@ import (
 func debugPgTable() {
 	factory := asyncdb.NewPgTableFactory("postgres://postgres:secret@localhost:5432/postgres")
 	defer factory.Close()
+	_ = factory.DeleteTable("test_table")
 	table, err := factory.GetTable("test_table")
 	if err != nil {
 		panic(err)
@@ -58,6 +59,24 @@ func debugPgTable() {
 	// Delete non-existent value from DB
 	err = table.Delete("2")
 	fmt.Println("Delete non-existent Results:", err)
+
+	// Insert a composite key
+	key := struct {
+		Id   int
+		Name string
+	}{Id: 1, Name: "Test"}
+	err = table.Put(key, "Test")
+	fmt.Println("Composite key:", fmt.Sprintf("%v", key))
+	fmt.Println("Put composite key Results:", err)
+
+	val, err = table.Get(key)
+	fmt.Println("Get composite key Results:", val, err)
+
+	tm := asyncdb.NewTransactionManager()
+	lm := asyncdb.NewLockManager()
+	h := asyncdb.NewStringHasher()
+	db := asyncdb.NewAsyncDB(tm, lm, h)
+	_, _ = db.Connect()
 }
 
 func debug() {
