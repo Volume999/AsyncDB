@@ -11,6 +11,7 @@ import (
 	"github.com/Volume999/AsyncDB/internal/tpcc/services/order"
 	async2 "github.com/Volume999/AsyncDB/internal/tpcc/stores/async"
 	"github.com/kr/pretty"
+	"strconv"
 	"sync"
 )
 
@@ -191,10 +192,12 @@ func withTransaction(db *asyncdb.AsyncDB, ctx *asyncdb.ConnectionContext, workfl
 	if err != nil {
 		panic("Failed to begin transaction: " + err.Error())
 	}
+	fmt.Println("Transaction Ts: " + strconv.FormatInt(ctx.Txn.Timestamp(), 10))
 	abortCount := 0
 	err = workflow()
 	for err != nil {
 		abortCount++
+		fmt.Println("Transaction Restart")
 		err = workflow()
 	}
 	err = db.CommitTransaction(ctx)
@@ -238,8 +241,9 @@ func debugAsyncDBWorkflow() {
 		panic("Failed to setup AsyncDB workflow: " + err.Error())
 	}
 	wg := sync.WaitGroup{}
-	wg.Add(10)
-	for range 10 {
+	workflowCount := 3
+	wg.Add(workflowCount)
+	for range workflowCount {
 		go func() {
 			defer wg.Done()
 			executeWorkflow(db)
