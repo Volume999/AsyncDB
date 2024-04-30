@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/Volume999/AsyncDB/asyncdb"
+	"github.com/Volume999/AsyncDB/internal/databases"
 	"github.com/Volume999/AsyncDB/internal/tpcc/config"
 	"github.com/Volume999/AsyncDB/internal/tpcc/dataloaders"
 	"github.com/Volume999/AsyncDB/internal/tpcc/dataloaders/loaders"
@@ -10,6 +11,7 @@ import (
 	"github.com/Volume999/AsyncDB/internal/tpcc/services/order"
 	async2 "github.com/Volume999/AsyncDB/internal/tpcc/stores/async"
 	"github.com/kr/pretty"
+	"sync"
 )
 
 func debugPgTable() {
@@ -162,6 +164,90 @@ func debug() {
 	fmt.Printf("Result: %# v\n", pretty.Formatter(ord))
 }
 
+func SetupAsyncDBWorkflow(db *asyncdb.AsyncDB, pgFactory *asyncdb.PgTableFactory, keys int) error {
+	tables := []string{"Orders", "Items", "StockKeepingUnits", "Customers", "ItemOffers", "OrderPayments", "ItemOptions", "CustomerOffersUsage", "TaxProviders", "OrderTaxes"}
+	ctx, _ := db.Connect()
+	for _, table := range tables {
+		tbl, err := pgFactory.GetTable(table)
+		if err != nil {
+			return err
+		}
+		for i := 0; i <= keys; i++ {
+			err = tbl.Put(i, "value")
+			if err != nil {
+				return err
+			}
+		}
+		err = db.CreateTable(ctx, tbl)
+		if err != nil {
+			return err
+		}
+	}
+	err := db.Disconnect(ctx)
+	return err
+}
+func withTransaction(db *asyncdb.AsyncDB, ctx *asyncdb.ConnectionContext, workflow func() error) {
+	err := db.BeginTransaction(ctx)
+	if err != nil {
+		panic("Failed to begin transaction: " + err.Error())
+	}
+	abortCount := 0
+	err = workflow()
+	for err != nil {
+		abortCount++
+		err = workflow()
+	}
+	err = db.CommitTransaction(ctx)
+	if err != nil {
+		panic("Failed to commit transaction: " + err.Error())
+	}
+	fmt.Println("Transaction aborted count: ", abortCount)
+}
+
+func executeWorkflow(db *asyncdb.AsyncDB) {
+	ctx, _ := db.Connect()
+	withTransaction(db, ctx, func() error {
+		resChan := make(chan databases.RequestResult, 10)
+		for i := 0; i < 10; i++ {
+			go func() {
+				res := <-db.Put(ctx, "Orders", i, "value")
+				resChan <- res
+			}()
+		}
+		for i := 0; i < 10; i++ {
+			res := <-resChan
+			if res.Err != nil {
+				return res.Err
+			}
+		}
+		return nil
+	})
+}
+
+func debugAsyncDBWorkflow() {
+	lm := asyncdb.NewLockManager()
+	tm := asyncdb.NewTransactionManager()
+	h := asyncdb.NewStringHasher()
+	db := asyncdb.NewAsyncDB(tm, lm, h, asyncdb.WithExplicitTxn())
+	connString := "postgres://postgres:secret@localhost:5432/postgres"
+	pgFactory, err := asyncdb.NewPgTableFactory(connString)
+	if err != nil {
+		panic("Failed to create PgTableFactory: " + err.Error())
+	}
+	if err = SetupAsyncDBWorkflow(db, pgFactory, 10); err != nil {
+		panic("Failed to setup AsyncDB workflow: " + err.Error())
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(10)
+	for range 10 {
+		go func() {
+			defer wg.Done()
+			executeWorkflow(db)
+		}()
+	}
+	wg.Wait()
+}
+
 func main() {
-	debugPgTable()
+	debugAsyncDBWorkflow()
 }

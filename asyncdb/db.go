@@ -118,16 +118,19 @@ func (p *AsyncDB) DropTable(_ *ConnectionContext, tableName string) error {
 
 func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{}, value interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
-	if ctx.Txn.mode == Committing || ctx.Txn.mode == Aborting {
-		resultChan <- databases.RequestResult{
-			Data: nil,
-			Err:  ErrXactInTerminalState,
-		}
-		return resultChan
-	}
-	wg, _ := p.currentProcesses.Get(ctx.ID)
-	wg.Add(1)
 	go func() {
+		p.currentProcesses.Lock()
+		if ctx.Txn.mode == Committing || ctx.Txn.mode == Aborting {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  ErrXactInTerminalState,
+			}
+			p.currentProcesses.Unlock()
+			return
+		}
+		wg, _ := p.currentProcesses.GetUnsafe(ctx.ID)
+		wg.Add(1)
+		p.currentProcesses.Unlock()
 		hash := p.hasher.HashStringUint64(tableName)
 		table, ok := p.data.Get(hash)
 		if !ok {
@@ -219,15 +222,18 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 
 func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
+	p.currentProcesses.Lock()
 	if ctx.Txn.mode == Committing || ctx.Txn.mode == Aborting {
 		resultChan <- databases.RequestResult{
 			Data: nil,
 			Err:  ErrXactInTerminalState,
 		}
+		p.currentProcesses.Unlock()
 		return resultChan
 	}
-	wg, _ := p.currentProcesses.Get(ctx.ID)
+	wg, _ := p.currentProcesses.GetUnsafe(ctx.ID)
 	wg.Add(1)
+	p.currentProcesses.Unlock()
 	go func() {
 		implTransaction := false
 
@@ -312,16 +318,19 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 
 func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
 	resultChan := make(chan databases.RequestResult)
+	p.currentProcesses.Lock()
 	if ctx.Txn.mode == Committing || ctx.Txn.mode == Aborting {
 		resultChan <- databases.RequestResult{
 			Data: nil,
 			Err:  ErrXactInTerminalState,
 		}
+		p.currentProcesses.Unlock()
 		return resultChan
 	}
-	hash := p.hasher.HashStringUint64(tableName)
-	wg, _ := p.currentProcesses.Get(ctx.ID)
+	wg, _ := p.currentProcesses.GetUnsafe(ctx.ID)
 	wg.Add(1)
+	p.currentProcesses.Unlock()
+	hash := p.hasher.HashStringUint64(tableName)
 	go func() {
 		var err error
 
@@ -420,8 +429,10 @@ func (p *AsyncDB) CommitTransaction(ctx *ConnectionContext) error {
 	// Wait for concurrent queries to finish
 	ctx.Txn.mode = Committing
 
-	wg, _ := p.currentProcesses.Get(ctx.ID)
+	p.currentProcesses.Lock()
+	wg, _ := p.currentProcesses.GetUnsafe(ctx.ID)
 	wg.Wait()
+	p.currentProcesses.Unlock()
 
 	tLog, err := p.tManager.GetLog(ctx.ID)
 	if err != nil {
@@ -438,9 +449,11 @@ func (p *AsyncDB) CommitTransaction(ctx *ConnectionContext) error {
 
 func (p *AsyncDB) abortTransaction(ctx *ConnectionContext) error {
 	ctx.Txn.mode = Aborting
-	wg, _ := p.currentProcesses.Get(ctx.ID)
+	p.currentProcesses.Lock()
+	wg, _ := p.currentProcesses.GetUnsafe(ctx.ID)
 	err := p.lManager.ReleaseLocks(ctx.Txn.tId)
 	wg.Wait()
+	p.currentProcesses.Unlock()
 	err = errors.Join(err, p.tManager.DeleteLog(ctx.ID))
 	ctx.Txn.mode = Active
 	return err
@@ -448,7 +461,9 @@ func (p *AsyncDB) abortTransaction(ctx *ConnectionContext) error {
 
 func (p *AsyncDB) RollbackTransaction(ctx *ConnectionContext) error {
 	ctx.Txn.mode = Aborting
-	wg, _ := p.currentProcesses.Get(ctx.ID)
+	p.currentProcesses.Lock()
+	wg, _ := p.currentProcesses.GetUnsafe(ctx.ID)
+	p.currentProcesses.Unlock()
 	// Todo: Figure out how to cancel queries, instead of waiting for them to finish
 	err := p.lManager.ReleaseLocks(ctx.Txn.tId)
 	wg.Wait()

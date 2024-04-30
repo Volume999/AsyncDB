@@ -1,6 +1,6 @@
 module github.com/Volume999/AsyncDB
 
-go 1.22
+go 1.22.1
 
 require (
 	github.com/dlsniper/debugger v0.6.0
