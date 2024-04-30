@@ -32,6 +32,7 @@ var ErrTableExists = errors.New("table already exists")
 var ErrTableNotFound = errors.New("table not found")
 var ErrXactAborted = errors.New("transaction aborted")
 var ErrXactInTerminalState = errors.New("transaction in terminal state")
+var ErrXactInProgress = errors.New("transaction in progress")
 
 type Hasher interface {
 	HashStringUint64(string) uint64
@@ -74,13 +75,13 @@ func (p *AsyncDB) Connect() (*ConnectionContext, error) {
 	return &ConnectionContext{ID: guid, Txn: &TransactInfo{tId: TransactId(uuid.Nil), mode: Ready, ts: 0}}, nil
 }
 
-func (p *AsyncDB) Disconnect(context *ConnectionContext) error {
-	var rollbackErr error
+func (p *AsyncDB) Disconnect(ctx *ConnectionContext) error {
 	// Todo: this is not good
-	if context.Txn != nil {
-		rollbackErr = p.RollbackTransaction(context)
+	if ctx.Txn.mode != Ready {
+		return ErrXactInProgress
 	}
-	return rollbackErr
+	p.currentProcesses.Delete(ctx.ID)
+	return nil
 }
 
 func (p *AsyncDB) CreateTable(_ *ConnectionContext, table Table) error {
@@ -148,7 +149,7 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 		}
 		implTransaction := false
 
-		// If the connection is not in a transaction - start a transaction
+		// If the connection is not in a transaction and implicit transactions are allowed - start a transaction
 		_, err = p.tManager.GetLog(ctx.ID)
 		if errors.Is(err, ErrConnNotInXact) {
 			if !p.withImplicitTxn {
