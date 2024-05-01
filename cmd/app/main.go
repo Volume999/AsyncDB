@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Volume999/AsyncDB/asyncdb"
 	"github.com/Volume999/AsyncDB/internal/databases"
@@ -12,6 +13,7 @@ import (
 	async2 "github.com/Volume999/AsyncDB/internal/tpcc/stores/async"
 	"github.com/kr/pretty"
 	"sync"
+	"time"
 )
 
 func debugPgTable() {
@@ -186,8 +188,12 @@ func SetupAsyncDBWorkflow(db *asyncdb.AsyncDB, pgFactory *asyncdb.PgTableFactory
 	err := db.Disconnect(ctx)
 	return err
 }
-func withTransaction(db *asyncdb.AsyncDB, ctx *asyncdb.ConnectionContext, workflow func() error) {
+func withTransaction(db *asyncdb.AsyncDB, ctx *asyncdb.ConnectionContext, idx int, workflow func() error) {
 	err := db.BeginTransaction(ctx)
+	if idx == -1 {
+		ctx.Txn.SetTimestamp(0)
+	}
+	fmt.Printf("Transaction %v Started\n", idx)
 	if err != nil {
 		panic("Failed to begin transaction: " + err.Error())
 	}
@@ -195,7 +201,8 @@ func withTransaction(db *asyncdb.AsyncDB, ctx *asyncdb.ConnectionContext, workfl
 	err = workflow()
 	for err != nil {
 		abortCount++
-		fmt.Println("Transaction Restart")
+		fmt.Printf("Transaction aborted, idx: %v, count: %d, error: %v\n", idx, abortCount, err.Error())
+		time.Sleep(1 * time.Second)
 		err = workflow()
 	}
 	err = db.CommitTransaction(ctx)
@@ -205,23 +212,21 @@ func withTransaction(db *asyncdb.AsyncDB, ctx *asyncdb.ConnectionContext, workfl
 	fmt.Println("Transaction aborted count: ", abortCount)
 }
 
-func executeWorkflow(db *asyncdb.AsyncDB) {
+func executeWorkflow(db *asyncdb.AsyncDB, idx int) {
 	ctx, _ := db.Connect()
-	withTransaction(db, ctx, func() error {
+	withTransaction(db, ctx, idx, func() error {
 		resChan := make(chan databases.RequestResult, 10)
 		for i := 0; i < 10; i++ {
 			go func() {
-				res := <-db.Put(ctx, "Orders", i, "value")
-				resChan <- res
+				resChan <- <-db.Put(ctx, "Orders", i, "value")
 			}()
 		}
+		var err error
 		for i := 0; i < 10; i++ {
 			res := <-resChan
-			if res.Err != nil {
-				return res.Err
-			}
+			err = errors.Join(err, res.Err)
 		}
-		return nil
+		return err
 	})
 }
 
@@ -239,12 +244,16 @@ func debugAsyncDBWorkflow() {
 		panic("Failed to setup AsyncDB workflow: " + err.Error())
 	}
 	wg := sync.WaitGroup{}
-	workflowCount := 3
+	workflowCount := 10
 	wg.Add(workflowCount)
-	for range workflowCount {
+	go func() {
+		defer wg.Done()
+		executeWorkflow(db, -1)
+	}()
+	for i := range workflowCount - 1 {
 		go func() {
 			defer wg.Done()
-			executeWorkflow(db)
+			executeWorkflow(db, i)
 		}()
 	}
 	wg.Wait()
