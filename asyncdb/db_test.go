@@ -596,10 +596,22 @@ func (s *DMLSuite) TestAsyncDB_Data_Consistency() {
 	for i := 0; i < threads; i++ {
 		go f()
 	}
-	wg.Wait()
-	val := <-db.Get(ctx_start, "test", 1)
-	s.Nil(val.Err)
-	s.Equal(threads*iters, val.Data)
+	waitReturn := make(chan struct{})
+	go func() {
+		defer close(waitReturn)
+		wg.Wait()
+	}()
+	assert.Eventually(s.T(), func() bool {
+		select {
+		case <-waitReturn:
+			val := <-db.Get(ctx_start, "test", 1)
+			s.Nil(val.Err)
+			s.Equal(threads*iters, val.Data)
+			return true
+		default:
+			return false
+		}
+	}, 5*time.Second, 100*time.Millisecond)
 }
 
 func (s *DMLSuite) TestAsyncDB_When_Lock_Conflict_Should_Abort_Transaction() {
@@ -637,6 +649,7 @@ func (s *DMLSuite) TestAsyncDB_ConcurrentOperation_Should_End_When_Rollback() {
 			_ = db.BeginTransaction(ctx2)
 			<-db.Put(ctx2, "test", 1, 2)
 			aborted := make(chan struct{})
+			started := make(chan struct{})
 			go func() {
 				defer close(aborted)
 				var ch <-chan databases.RequestResult
@@ -648,6 +661,8 @@ func (s *DMLSuite) TestAsyncDB_ConcurrentOperation_Should_End_When_Rollback() {
 				case "Delete":
 					ch = db.Delete(ctx, "test", 1)
 				}
+				time.Sleep(1 * time.Millisecond)
+				close(started)
 				s.Eventually(func() bool {
 					select {
 					case res := <-ch:
@@ -657,7 +672,7 @@ func (s *DMLSuite) TestAsyncDB_ConcurrentOperation_Should_End_When_Rollback() {
 					}
 				}, time.Second, 100*time.Millisecond)
 			}()
-			time.Sleep(10 * time.Millisecond)
+			<-started
 			_ = db.RollbackTransaction(ctx)
 			s.Eventually(func() bool {
 				select {
@@ -675,6 +690,7 @@ func (s *DMLSuite) TestAsyncDB_ConcurrentOperation_Should_End_When_Rollback() {
 func (s *DMLSuite) TestAsyncDB_When_Commit_Concurrent_Operations_Should_Finish() {
 	db := s.db
 	ctx := s.ctx
+	//ctx, _ = db.Connect()
 	_ = db.BeginTransaction(ctx)
 	ctx2, _ := db.Connect()
 	_ = db.BeginTransaction(ctx2)
@@ -695,6 +711,7 @@ func (s *DMLSuite) TestAsyncDB_When_Commit_Concurrent_Operations_Should_Finish()
 
 func (s *DMLSuite) TestAsyncDB_When_Commit_Operations_Cannot_Be_Submitted() {
 	db := s.db
+	db.withImplicitTxn = false
 	ctx := s.ctx
 	wait := make(chan struct{})
 	_ = db.BeginTransaction(ctx)
@@ -720,6 +737,7 @@ func (s *DMLSuite) TestAsyncDB_When_Commit_Operations_Cannot_Be_Submitted() {
 
 func (s *DMLSuite) TestAsyncDB_When_Rollback_Operations_Cannot_Be_Submitted() {
 	db := s.db
+	db.withImplicitTxn = false
 	ctx := s.ctx
 	wait := make(chan struct{})
 	_ = db.BeginTransaction(ctx)
