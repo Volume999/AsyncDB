@@ -184,7 +184,7 @@ func (lm *LockManagerImpl) Lock(lockType int, tid TransactId, ts int64, tableId 
 		ol.m.Unlock()
 		return ErrLockConflict
 	} else if lockType == WriteLock {
-		if wl.tId == TransactId(uuid.Nil) {
+		if _, ok := lm.transactReleased.Get(wl.tId); ok || wl.tId == TransactId(uuid.Nil) {
 			if len(rl) == 0 || (len(rl) == 1 && rl[0].tId == tid) {
 				ol.WLock = xact
 				ol.m.Unlock()
