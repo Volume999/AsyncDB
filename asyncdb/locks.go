@@ -240,10 +240,6 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 	}
 	transactLocks.Lock()
 	for tableId, locks := range transactLocks.m {
-		//if _, ok := lm.lockMap[tableId]; !ok {
-		//	continue
-		//}
-		//table := lm.lockMap[tableId]
 		table, ok := lm.lockMap.Get(tableId)
 		if !ok {
 			continue
@@ -271,7 +267,8 @@ func (lm *LockManagerImpl) ReleaseLocks(tid TransactId) error {
 			}
 			newQueue := make([]*LockWaiter, 0)
 			for i, waiter := range ol.Queue {
-				if waiter.xact.tId == tid {
+				// TODO: Here I check both if the waiter tid has been released, or if waiter tid is the released tid
+				if _, ok := lm.transactReleased.Get(tid); ok || waiter.xact.tId == tid {
 					waiter.Chan <- ErrLocksReleased
 				} else {
 					newQueue = append(newQueue, ol.Queue[i])

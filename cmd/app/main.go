@@ -258,15 +258,20 @@ func debugAsyncDBWorkflow() {
 	}
 	wg := sync.WaitGroup{}
 	workflowCount := 10
+	iters := 10
 	wg.Add(workflowCount)
 	go func() {
 		defer wg.Done()
-		executeWorkflow(db, -1)
+		for j := 0; j < iters; j++ {
+			executeWorkflow(db, -1)
+		}
 	}()
 	for i := range workflowCount - 1 {
 		go func() {
 			defer wg.Done()
-			executeWorkflow(db, i)
+			for j := 0; j < iters; j++ {
+				executeWorkflow(db, i)
+			}
 		}()
 	}
 	wg.Wait()
