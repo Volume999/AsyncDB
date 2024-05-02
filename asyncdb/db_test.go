@@ -666,7 +666,8 @@ func (s *DMLSuite) TestAsyncDB_ConcurrentOperation_Should_End_When_Rollback() {
 				s.Eventually(func() bool {
 					select {
 					case res := <-ch:
-						return s.EqualError(res.Err, "transaction aborted")
+						// There can be different errors, such as transaction aborted error, or transaction is aborting error
+						return s.NotNil(res.Err)
 					default:
 						return false
 					}
