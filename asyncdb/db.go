@@ -363,7 +363,7 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 		if errors.Is(err, ErrLocksReleased) {
 			resultChan <- databases.RequestResult{
 				Data: nil,
-				Err:  ErrXactAborted,
+				Err:  ErrXactInTerminalState,
 			}
 			return
 		}
@@ -460,7 +460,7 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 		if errors.Is(err, ErrLocksReleased) {
 			resultChan <- databases.RequestResult{
 				Data: nil,
-				Err:  ErrXactAborted,
+				Err:  ErrXactInTerminalState,
 			}
 			return
 		}
