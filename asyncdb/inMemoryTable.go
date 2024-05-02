@@ -4,7 +4,7 @@ import "fmt"
 
 type InMemoryTable[K comparable, V any] struct {
 	name string
-	data map[K]V
+	data *ThreadSafeMap[K, V]
 }
 
 func NewInMemoryTable[K comparable, V any](name string) (*InMemoryTable[K, V], error) {
@@ -13,7 +13,7 @@ func NewInMemoryTable[K comparable, V any](name string) (*InMemoryTable[K, V], e
 	}
 	return &InMemoryTable[K, V]{
 		name: name,
-		data: make(map[K]V),
+		data: NewThreadSafeMap[K, V](),
 	}, nil
 }
 
@@ -26,7 +26,7 @@ func (t *InMemoryTable[K, V]) Get(key interface{}) (value interface{}, err error
 	if !ok {
 		return nil, fmt.Errorf("%w: expected key type - %T, got - %T", ErrTypeMismatch, *new(K), key)
 	}
-	v, ok := t.data[keyTyped]
+	v, ok := t.data.Get(keyTyped)
 	if !ok {
 		return *new(V), fmt.Errorf("%w - %v", ErrKeyNotFound, key)
 	}
@@ -42,7 +42,7 @@ func (t *InMemoryTable[K, V]) Put(key interface{}, value interface{}) error {
 	if !valueOk {
 		return fmt.Errorf("%w: expected value type - %T, got - %T", ErrTypeMismatch, *new(V), value)
 	}
-	t.data[keyTyped] = valueTyped
+	t.data.Put(keyTyped, valueTyped)
 	return nil
 }
 
@@ -51,7 +51,7 @@ func (t *InMemoryTable[K, V]) Delete(key interface{}) error {
 	if !ok {
 		return fmt.Errorf("%w: %T", ErrTypeMismatch, key)
 	}
-	delete(t.data, keyTyped)
+	t.data.Delete(keyTyped)
 	return nil
 }
 
@@ -71,5 +71,5 @@ func (t *InMemoryTable[K, V]) ValidateTypes(key interface{}, value interface{}) 
 
 func LoadTable[K comparable, V any](name string, data map[K]V, table *InMemoryTable[K, V]) {
 	table.name = name
-	table.data = data
+	table.data.m = data
 }

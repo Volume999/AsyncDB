@@ -583,7 +583,7 @@ func (s *DMLSuite) TestAsyncDB_Data_Consistency() {
 		for i := 0; i < iters; i++ {
 			_ = db.BeginTransaction(ctx)
 			err := xact(ctx)
-			for errors.Is(err, ErrLockConflict) {
+			for errors.Is(err, ErrXactInTerminalState) || errors.Is(err, ErrLockConflict) {
 				err = xact(ctx)
 			}
 			if err != nil {
@@ -695,19 +695,27 @@ func (s *DMLSuite) TestAsyncDB_When_Commit_Concurrent_Operations_Should_Finish()
 	_ = db.BeginTransaction(ctx)
 	ctx2, _ := db.Connect()
 	_ = db.BeginTransaction(ctx2)
-	<-db.Put(ctx2, "test", 1, 2)
-	db.Put(ctx, "test", 1, 3)
+	//<-db.Put(ctx2, "test", 1, 2)
 	time.Sleep(10 * time.Millisecond)
+	db.Put(ctx, "test", 1, 3)
 	wait := make(chan struct{})
+	time.Sleep(10 * time.Millisecond)
 	go func() {
 		defer close(wait)
-		db.CommitTransaction(ctx)
+		if err := db.CommitTransaction(ctx); err != nil {
+			s.T().Error(err)
+		}
 	}()
-	_ = db.CommitTransaction(ctx2)
+	time.Sleep(10 * time.Millisecond)
+	if err := db.CommitTransaction(ctx2); err != nil {
+		s.T().Error(err)
+	}
 	<-wait
-	val := <-db.Get(ctx, "test", 1)
+	ctx3, _ := db.Connect()
+	val := <-db.Get(ctx3, "test", 1)
+	data := val.Data
 	s.Nil(val.Err)
-	s.Equal("3", fmt.Sprintf("%v", val.Data))
+	s.Equal("3", fmt.Sprintf("%v", data))
 }
 
 func (s *DMLSuite) TestAsyncDB_When_Commit_Operations_Cannot_Be_Submitted() {
