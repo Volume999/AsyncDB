@@ -13,8 +13,9 @@ import (
 	async2 "github.com/Volume999/AsyncDB/internal/tpcc/stores/async"
 	"github.com/kr/pretty"
 	"sync"
-	"time"
 )
+
+var ErrBusinessLogic = errors.New("business logic error")
 
 func debugPgTable() {
 	factory, _ := asyncdb.NewPgTableFactory("postgres://postgres:secret@localhost:5432/postgres")
@@ -202,7 +203,7 @@ func withTransaction(db *asyncdb.AsyncDB, ctx *asyncdb.ConnectionContext, idx in
 	for err != nil {
 		abortCount++
 		fmt.Printf("Transaction aborted, idx: %v, count: %d, error: %v\n", idx, abortCount, err.Error())
-		time.Sleep(1 * time.Second)
+		//time.Sleep(1 * time.Second)
 		err = workflow()
 	}
 	err = db.CommitTransaction(ctx)
@@ -215,13 +216,25 @@ func withTransaction(db *asyncdb.AsyncDB, ctx *asyncdb.ConnectionContext, idx in
 func executeWorkflow(db *asyncdb.AsyncDB, idx int) {
 	ctx, _ := db.Connect()
 	withTransaction(db, ctx, idx, func() error {
+		var err error
 		resChan := make(chan databases.RequestResult, 10)
+		for i := 0; i < 10; i++ {
+			go func() {
+				resChan <- <-db.Get(ctx, "Orders", i)
+			}()
+		}
+		for i := 0; i < 10; i++ {
+			res := <-resChan
+			err = errors.Join(err, res.Err)
+		}
+		if err != nil {
+			return err
+		}
 		for i := 0; i < 10; i++ {
 			go func() {
 				resChan <- <-db.Put(ctx, "Orders", i, "value")
 			}()
 		}
-		var err error
 		for i := 0; i < 10; i++ {
 			res := <-resChan
 			err = errors.Join(err, res.Err)
