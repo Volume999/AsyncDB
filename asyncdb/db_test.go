@@ -567,12 +567,12 @@ func (s *DMLSuite) TestAsyncDB_Data_Consistency() {
 	threads := 10
 	ctx_start := s.ctx
 	<-db.Put(ctx_start, "test", 1, 0)
-	xact := func(ctx *ConnectionContext) error {
-		val := <-db.Get(ctx, "test", 1)
+	increment := func(ctx *ConnectionContext, tableName string) error {
+		val := <-db.Get(ctx, tableName, 1)
 		if val.Err != nil {
 			return val.Err
 		}
-		val = <-db.Put(ctx, "test", 1, val.Data.(int)+1)
+		val = <-db.Put(ctx, tableName, 1, val.Data.(int)+1)
 		return val.Err
 	}
 	wg := sync.WaitGroup{}
@@ -582,9 +582,9 @@ func (s *DMLSuite) TestAsyncDB_Data_Consistency() {
 		ctx, _ := db.Connect()
 		for i := 0; i < iters; i++ {
 			_ = db.BeginTransaction(ctx)
-			err := xact(ctx)
+			err := increment(ctx, "test")
 			for errors.Is(err, ErrXactInTerminalState) || errors.Is(err, ErrLockConflict) {
-				err = xact(ctx)
+				err = increment(ctx, "test")
 			}
 			if err != nil {
 				s.T().Errorf("Error in transaction: %v", err)
