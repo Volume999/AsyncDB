@@ -118,6 +118,8 @@ func (t *TransactionManagerImpl) DeleteLog(ConnId uuid.UUID) error {
 	if !ok {
 		return ErrConnNotInXact
 	}
+	txn.tLog.l.Lock()
+	defer txn.tLog.l.Unlock()
 	txn.tLog.l = NewThreadSafeMap[uint64, []LogEntry]()
 	return nil
 }

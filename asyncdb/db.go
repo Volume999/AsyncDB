@@ -137,8 +137,6 @@ func (p *AsyncDB) BeginTransaction(ctx *ConnectionContext) error {
 }
 
 func (p *AsyncDB) CommitTransaction(ctx *ConnectionContext) error {
-	// Todo: Check the current state of transaction?
-	// Wait for concurrent queries to finish
 	ctx.TxnMu.Lock()
 	defer ctx.TxnMu.Unlock()
 	if ctx.Txn == nil {
@@ -178,10 +176,12 @@ func (p *AsyncDB) abortTransaction(ctx *ConnectionContext) error {
 	ts := ctx.Txn.ts
 
 	err = errors.Join(err, p.tManager.EndTransaction(ctx.ID))
+	//err = errors.Join(err, p.tManager.DeleteLog(ctx.ID))
 	//ctx.Txn.mode = Active
 	tId, xactErr := p.tManager.StartTransaction(ctx.ID)
+	err = errors.Join(err, xactErr)
 	ctx.Txn = &TransactInfo{tId: tId, mode: Ready, ts: ts, acts: &sync.WaitGroup{}}
-	return errors.Join(err, xactErr)
+	return err
 }
 
 func (p *AsyncDB) RollbackTransaction(ctx *ConnectionContext) error {
