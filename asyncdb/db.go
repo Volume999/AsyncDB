@@ -209,7 +209,13 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 		// If the connection is not in a transaction and implicit transactions are allowed - start a transaction
 		implTransaction := false
 		transactionAborted := false
-		ctx.TxnMu.RLock()
+		if !ctx.TxnMu.TryRLock() {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  ErrXactInTerminalState,
+			}
+			return
+		}
 		if ctx.Txn == nil {
 			if !p.withImplicitTxn {
 				resultChan <- databases.RequestResult{
@@ -313,7 +319,13 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 	go func() {
 		implTransaction := false
 		transactionAborted := false
-		ctx.TxnMu.RLock()
+		if !ctx.TxnMu.TryRLock() {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  ErrXactInTerminalState,
+			}
+			return
+		}
 		if ctx.Txn == nil {
 			if !p.withImplicitTxn {
 				resultChan <- databases.RequestResult{
@@ -412,7 +424,13 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 	go func() {
 		implTransaction := false
 		transactionAborted := false
-		ctx.TxnMu.RLock()
+		if !ctx.TxnMu.TryRLock() {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  ErrXactInTerminalState,
+			}
+			return
+		}
 		if ctx.Txn == nil {
 			if !p.withImplicitTxn {
 				resultChan <- databases.RequestResult{
