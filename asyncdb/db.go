@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Volume999/AsyncDB/internal/databases"
-	"github.com/dlsniper/debugger"
 	"github.com/google/uuid"
 	"sync"
 	"time"
@@ -405,7 +404,7 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 			}
 			return
 		}
-		res := <-p.getValue(ctx, tableName, key)
+		res := p.getValue(ctx, tableName, key)
 
 		if implTransaction {
 			ctx.Txn.acts.Done()
@@ -493,7 +492,7 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 			}
 			return
 		}
-		res := <-p.getValue(ctx, tableName, key)
+		res := p.getValue(ctx, tableName, key)
 		if res.Err != nil {
 			resultChan <- databases.RequestResult{
 				Data: nil,
@@ -550,26 +549,18 @@ func (p *AsyncDB) applyLogs(log *TransactionLog) error {
 	return nil
 }
 
-func (p *AsyncDB) getValue(_ *ConnectionContext, tableName string, key interface{}) <-chan databases.RequestResult {
-	resultChan := make(chan databases.RequestResult)
-	go func() {
-		debugger.SetLabels(func() []string {
-			return []string{"asyncdb", "getValue", "tableName", tableName, "key", fmt.Sprintf("%v", key)}
-		})
-		hash := p.hasher.HashStringUint64(tableName)
-		table, ok := p.data.Get(hash)
-		if !ok {
-			resultChan <- databases.RequestResult{
-				Data: nil,
-				Err:  fmt.Errorf("%w - %s", ErrTableNotFound, tableName),
-			}
-			return
+func (p *AsyncDB) getValue(_ *ConnectionContext, tableName string, key interface{}) databases.RequestResult {
+	hash := p.hasher.HashStringUint64(tableName)
+	table, ok := p.data.Get(hash)
+	if !ok {
+		return databases.RequestResult{
+			Data: nil,
+			Err:  fmt.Errorf("%w - %s", ErrTableNotFound, tableName),
 		}
-		value, err := table.Get(key)
-		resultChan <- databases.RequestResult{
-			Data: value,
-			Err:  err,
-		}
-	}()
-	return resultChan
+	}
+	value, err := table.Get(key)
+	return databases.RequestResult{
+		Data: value,
+		Err:  err,
+	}
 }
