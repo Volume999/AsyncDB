@@ -21,6 +21,7 @@ func NewPgTableFactory(connectionString string) (*PgTableFactory, error) {
 		fmt.Errorf("failed to parse connection string: %w", err)
 		os.Exit(1)
 	}
+	// TODO: Adjust MaxConns in Postgres
 	config.MaxConns = 100
 	conn, err := pgxpool.NewWithConfig(context.Background(), config)
 	err = conn.Ping(context.Background())

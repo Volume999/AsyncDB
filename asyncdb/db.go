@@ -272,6 +272,13 @@ func (p *AsyncDB) Put(ctx *ConnectionContext, tableName string, key interface{},
 		}
 
 		tLog, err := p.tManager.GetLog(ctx.ID)
+		if err != nil {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  err,
+			}
+			return
+		}
 		err = p.lManager.Lock(WriteLock, ctx.Txn.tId, ctx.Txn.ts, TableId(hash), key)
 		// TODO: Change this logic
 		// Locks are released only when the transaction is aborted
@@ -349,6 +356,7 @@ func (p *AsyncDB) Get(ctx *ConnectionContext, tableName string, key interface{})
 				acts: &sync.WaitGroup{},
 			}
 		}
+		// Possibly Redundant
 		if ctx.Txn.mode == Committing || ctx.Txn.mode == Aborting {
 			resultChan <- databases.RequestResult{
 				Data: nil,
@@ -455,6 +463,7 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 			}
 		}
 		hash := p.hasher.HashStringUint64(tableName)
+		// Possibly Redundant
 		if ctx.Txn.mode == Committing || ctx.Txn.mode == Aborting {
 			resultChan <- databases.RequestResult{
 				Data: nil,
@@ -470,6 +479,13 @@ func (p *AsyncDB) Delete(ctx *ConnectionContext, tableName string, key interface
 		}()
 		ctx.TxnMu.RUnlock()
 		tLog, err := p.tManager.GetLog(ctx.ID)
+		if err != nil {
+			resultChan <- databases.RequestResult{
+				Data: nil,
+				Err:  err,
+			}
+			return
+		}
 		err = p.lManager.Lock(WriteLock, ctx.Txn.tId, ctx.Txn.ts, TableId(hash), key)
 		// TODO: Change this logic
 		// Locks are released only when the transaction is aborted
