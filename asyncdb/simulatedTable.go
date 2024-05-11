@@ -4,12 +4,14 @@ import "time"
 
 // Simulated table is a table that simulates DB access, while also providing a no-contention environment.
 type SimulatedTable struct {
-	name string
+	name         string
+	accessTimeMs int
 }
 
-func NewSimulatedTable(name string) *SimulatedTable {
+func NewSimulatedTable(name string, accessTimeMs int) *SimulatedTable {
 	return &SimulatedTable{
-		name: name,
+		name:         name,
+		accessTimeMs: accessTimeMs,
 	}
 }
 
@@ -18,7 +20,7 @@ func (s SimulatedTable) Name() string {
 }
 
 func (s SimulatedTable) simulateWork() {
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(time.Duration(s.accessTimeMs) * time.Millisecond)
 }
 
 func (s SimulatedTable) Get(key interface{}) (value interface{}, err error) {
